@@ -1,0 +1,41 @@
+# Compiled output
+/dist
+/node_modules
+
+# Environment variables (NEVER commit)
+.env
+.env.local
+.env.*.local
+
+# Google credentials (NEVER commit)
+google-creds.json
+*-creds.json
+credentials.json
+service-account.json
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+
+# Tests
+/coverage
+/.nyc_output
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Cache
+.eslintcache
+*.tsbuildinfo

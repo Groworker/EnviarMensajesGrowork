@@ -1,0 +1,355 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, In } from 'typeorm';
+import { SendJob, SendJobStatus } from '../entities/send-job.entity';
+import { JobOffer } from '../entities/job-offer.entity';
+import { EmailSend, EmailSendStatus } from '../entities/email-send.entity';
+import { ClientSendSettings } from '../entities/client-send-settings.entity';
+import { EmailReputation } from '../entities/email-reputation.entity';
+import { Client } from '../entities/client.entity';
+
+import { EmailService } from '../email/email.service';
+
+@Injectable()
+export class WorkerService {
+  private readonly logger = new Logger(WorkerService.name);
+  private isProcessing = false;
+
+  constructor(
+    @InjectRepository(SendJob)
+    private sendJobRepository: Repository<SendJob>,
+    @InjectRepository(JobOffer)
+    private jobOfferRepository: Repository<JobOffer>,
+    @InjectRepository(EmailSend)
+    private emailSendRepository: Repository<EmailSend>,
+    @InjectRepository(ClientSendSettings)
+    private settingsRepository: Repository<ClientSendSettings>,
+    @InjectRepository(EmailReputation)
+    private reputationRepository: Repository<EmailReputation>,
+    private emailService: EmailService,
+  ) {}
+
+  // Run frequently to process queue
+  @Cron(CronExpression.EVERY_MINUTE)
+  async processQueue() {
+    if (this.isProcessing) {
+      this.logger.debug('Worker is already processing. Skipping.');
+      return;
+    }
+    this.isProcessing = true;
+
+    try {
+      this.logger.log('Checking for pending send jobs...');
+
+      const jobs = await this.sendJobRepository.find({
+        where: { status: In([SendJobStatus.QUEUED, SendJobStatus.RUNNING]) },
+        relations: ['client', 'client.sendSettings'],
+      });
+
+      for (const job of jobs) {
+        if (job.status === SendJobStatus.QUEUED) {
+          job.status = SendJobStatus.RUNNING;
+          job.startedAt = new Date();
+          await this.sendJobRepository.save(job);
+        }
+
+        await this.processJob(job);
+      }
+    } catch (error) {
+      this.logger.error('Error in worker process', error);
+    } finally {
+      this.isProcessing = false;
+    }
+  }
+
+  private async processJob(job: SendJob) {
+    const remaining = job.emailsToSend - job.emailsSentCount;
+    if (remaining <= 0) {
+      job.status = SendJobStatus.DONE;
+      job.finishedAt = new Date();
+      await this.sendJobRepository.save(job);
+      return;
+    }
+
+    // Batch size for this run
+    const batchSize = Math.min(remaining, 5); // Process 5 at a time per tick per job
+    this.logger.log(
+      `Processing Job ${job.id} for Client ${job.clientId}. Remaining: ${remaining}. Batch: ${batchSize}`,
+    );
+
+    // Verify settings are loaded (should come from relations)
+    if (!job.client || !job.client.sendSettings) {
+      this.logger.warn(
+        `No send settings found for Client ${job.clientId}. Skipping.`,
+      );
+      return;
+    }
+
+    // Find Candidates using client fields
+    const candidates = await this.findCandidates(
+      job.client,
+      job.client.sendSettings,
+      batchSize,
+    );
+
+    if (candidates.length === 0) {
+      this.logger.warn(`No more candidates found for Client ${job.clientId}`);
+      // Only mark done if we really can't find anything, for now just skip
+      return;
+    }
+
+    for (const offer of candidates) {
+      await this.sendEmailForOffer(job, offer);
+    }
+  }
+
+  private async findCandidates(
+    client: any,
+    settings: ClientSendSettings,
+    limit: number,
+  ): Promise<JobOffer[]> {
+    // 1. Get IDs of already sent offers for this client
+    const sentOffers = await this.emailSendRepository
+      .createQueryBuilder('s')
+      .select('s.job_offer_id')
+      .where('s.client_id = :clientId', { clientId: client.id })
+      .getRawMany<{ job_offer_id: number }>();
+
+    const sentIds = sentOffers.map((s) => s.job_offer_id);
+    const excludeIds = sentIds.length > 0 ? sentIds : [-1];
+
+    // 2. Build Query based on Client Fields
+    const qb = this.jobOfferRepository
+      .createQueryBuilder('offer')
+      .where('offer.id NOT IN (:...excludeIds)', { excludeIds });
+
+    // Exclude Bad Reputation Emails
+    const badEmails = await this.reputationRepository.find({
+      where: [{ is_bounced: true }, { is_invalid: true }],
+      select: ['email'],
+    });
+
+    if (badEmails.length > 0) {
+      const badEmailList = badEmails.map((e) => e.email);
+      qb.andWhere('offer.email NOT IN (:...badEmailList)', { badEmailList });
+    }
+
+    // 3. Normalizar datos de Zoho (formato {values: []} a array directo)
+    // Manejar tanto arrays como strings en values
+    const paisesInteres = Array.isArray(client.paisesInteres?.values)
+      ? client.paisesInteres.values
+      : typeof client.paisesInteres?.values === 'string'
+      ? [client.paisesInteres.values]
+      : Array.isArray(client.paisesInteres)
+      ? client.paisesInteres
+      : [];
+
+    const ciudadesInteres = Array.isArray(client.ciudadesInteres?.values)
+      ? client.ciudadesInteres.values
+      : typeof client.ciudadesInteres?.values === 'string'
+      ? [client.ciudadesInteres.values]
+      : Array.isArray(client.ciudadesInteres)
+      ? client.ciudadesInteres
+      : [];
+
+    // 4. Apply matching criteria based on client fields
+    const criteria = settings?.matchingCriteria || {};
+    const matchMode = criteria.matchMode || 'all';
+    const enabledFilters = criteria.enabledFilters;
+
+    const conditions: string[] = [];
+    const parameters: any = {};
+
+    // Helper function to check if a filter is enabled
+    const isFilterEnabled = (filterName: string): boolean => {
+      if (!enabledFilters || enabledFilters.length === 0) {
+        return true; // If no explicit configuration, all filters active
+      }
+      return enabledFilters.includes(filterName);
+    };
+
+    // FILTER: Countries (from client.paisesInteres)
+    if (
+      isFilterEnabled('countries') &&
+      paisesInteres &&
+      paisesInteres.length > 0
+    ) {
+      conditions.push('offer.pais IN (:...countries)');
+      parameters.countries = paisesInteres;
+    }
+
+    // FILTER: Cities (from client.ciudadesInteres)
+    if (
+      isFilterEnabled('cities') &&
+      ciudadesInteres &&
+      ciudadesInteres.length > 0
+    ) {
+      conditions.push('offer.ciudad IN (:...cities)');
+      parameters.cities = ciudadesInteres;
+    }
+
+    // FILTER: Job Title (from client.jobTitle)
+    if (isFilterEnabled('jobTitle') && client.jobTitle) {
+      const jobTitleMode = criteria.jobTitleMatchMode || 'contains';
+      if (jobTitleMode === 'exact') {
+        conditions.push('LOWER(offer.puesto) = LOWER(:jobTitle)');
+        parameters.jobTitle = client.jobTitle;
+      } else {
+        // contains mode - case-insensitive partial match
+        conditions.push('offer.puesto ILIKE :jobTitle');
+        parameters.jobTitle = `%${client.jobTitle}%`;
+      }
+    }
+
+    // 5. Apply conditions based on matchMode
+    if (conditions.length > 0) {
+      if (matchMode === 'all') {
+        // AND logic - all conditions must match
+        const combinedCondition = conditions.join(' AND ');
+        qb.andWhere(`(${combinedCondition})`, parameters);
+      } else {
+        // OR logic - any condition matches
+        const combinedCondition = conditions.join(' OR ');
+        qb.andWhere(`(${combinedCondition})`, parameters);
+      }
+    }
+
+    // 6. Order by date scraped descending and limit
+    qb.orderBy('offer.fechaScrape', 'DESC');
+    qb.take(limit);
+
+    return qb.getMany();
+  }
+
+  private async sendEmailForOffer(job: SendJob, offer: JobOffer) {
+    // 1. Check duplicate again to be safe (race condition)
+    const exists = await this.emailSendRepository.findOne({
+      where: { clientId: job.clientId, jobOfferId: offer.id },
+    });
+    if (exists) return;
+
+    // 2. Reserve
+    const emailSend = this.emailSendRepository.create({
+      clientId: job.clientId,
+      jobOfferId: offer.id,
+      sendJobId: job.id,
+      recipientEmail: offer.email,
+      status: EmailSendStatus.RESERVED,
+    });
+    await this.emailSendRepository.save(emailSend);
+
+    try {
+      // 3. Get client info
+      const client = job.client;
+      const senderEmail = client.emailOperativo || client.email;
+      if (!client || !senderEmail) {
+        throw new Error(
+          `Client email is missing for job ${job.id} (client ID: ${client?.id})`,
+        );
+      }
+
+      // 4. Generate email subject
+      const subject = `Candidatura para ${offer.puesto} - ${client.nombre} ${client.apellido}`;
+
+      // 5. Generate email content
+      const content = this.generateEmailContent(client, offer);
+
+      // 6. Send Email
+      const messageId = await this.emailService.sendEmail(
+        offer.email,
+        subject,
+        content,
+        senderEmail, // Impersonated Sender
+      );
+
+      this.logger.log(
+        `Email sent from ${senderEmail} to ${offer.email} ID: ${messageId}`,
+      );
+
+      // 5. Update Status
+      emailSend.status = EmailSendStatus.SENT;
+      emailSend.messageId = messageId;
+      emailSend.content_snapshot = content;
+      emailSend.sentAt = new Date();
+      await this.emailSendRepository.save(emailSend);
+
+      // 6. Update Job Counter
+      await this.sendJobRepository.increment(
+        { id: job.id },
+        'emailsSentCount',
+        1,
+      );
+    } catch (error) {
+      this.logger.error(`Failed to send email to ${offer.email}`, error);
+      emailSend.status = EmailSendStatus.FAILED;
+      await this.emailSendRepository.save(emailSend);
+    }
+  }
+
+  private generateEmailContent(client: Client, offer: JobOffer): string {
+    const clientName = `${client.nombre} ${client.apellido}`;
+    const position = offer.puesto || 'el puesto disponible';
+    const company = offer.empresa || offer.hotel || 'su empresa';
+    const location = offer.ciudad
+      ? `${offer.ciudad}${offer.pais ? `, ${offer.pais}` : ''}`
+      : offer.pais || '';
+
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
+    .content { padding: 20px 0; }
+    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 0.9em; color: #666; }
+    .highlight { color: #0066cc; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2 style="margin: 0; color: #0066cc;">Candidatura para ${position}</h2>
+    </div>
+
+    <div class="content">
+      <p>Estimado/a responsable de ${company},</p>
+
+      <p>
+        Mi nombre es <span class="highlight">${clientName}</span> y me dirijo a ustedes con gran interés
+        en la posición de <span class="highlight">${position}</span>${location ? ` en ${location}` : ''}.
+      </p>
+
+      <p>
+        Cuento con experiencia en el sector ${client.industria || 'hotelero'} y estoy entusiasmado/a por
+        la oportunidad de formar parte de su equipo. Adjunto mi CV para su consideración.
+      </p>
+
+      <p>
+        Quedo a su disposición para ampliar cualquier información que consideren necesaria
+        y para concertar una entrevista en la fecha que mejor les convenga.
+      </p>
+
+      <p>Agradezco de antemano su atención y quedo a la espera de sus noticias.</p>
+
+      <p>
+        Atentamente,<br>
+        <strong>${clientName}</strong><br>
+        ${client.emailOperativo || client.email || ''}${client.phone ? `<br>${client.phone}` : ''}
+      </p>
+    </div>
+
+    <div class="footer">
+      <p style="margin: 0; font-size: 0.85em;">
+        Este correo ha sido enviado en respuesta a su oferta de trabajo publicada.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+    `.trim();
+  }
+}
