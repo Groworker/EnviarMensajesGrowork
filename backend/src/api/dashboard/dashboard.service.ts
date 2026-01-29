@@ -19,7 +19,7 @@ export class DashboardService {
   async getStats() {
     const totalClients = await this.clientRepository.count();
     const activeClients = await this.clientRepository.count({
-      where: { estado: 'Envío Activo' },
+      where: { estado: 'Envío activo' },
     });
 
     // Stats for today

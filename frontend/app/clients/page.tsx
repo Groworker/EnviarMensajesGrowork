@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
-import { Search, Settings, Save, X, Info, AlertCircle, MapPin, Briefcase } from 'lucide-react';
+import { Search, Settings, Save, X, Info, AlertCircle, MapPin, Briefcase, Filter } from 'lucide-react';
 import { MultiSelectInput } from '@/components/MultiSelectInput';
 import toast from 'react-hot-toast';
 
@@ -12,6 +12,11 @@ export default function ClientsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [editingClient, setEditingClient] = useState<any | null>(null);
     const [activeTab, setActiveTab] = useState<'warmup' | 'criteria'>('warmup');
+
+    // Column filters
+    const [estadoCrmFilter, setEstadoCrmFilter] = useState<string>('');
+    const [estadoEnvioFilter, setEstadoEnvioFilter] = useState<string>('');
+    const [warmupFilter, setWarmupFilter] = useState<string>('');
 
     const fetchClients = async () => {
         try {
@@ -200,15 +205,74 @@ export default function ClientsPage() {
         }
     };
 
-    const filteredClients = clients.filter(c =>
-        c.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.zohoId?.includes(searchTerm)
-    );
+    const handleToggleEnvio = async (clientId: number, currentActive: boolean) => {
+        const newActive = !currentActive;
+        const loadingToast = toast.loading(newActive ? 'Activando envíos...' : 'Desactivando envíos...');
+
+        try {
+            await api.patch(`/clients/${clientId}/settings`, { active: newActive });
+
+            toast.success(
+                newActive ? 'Envíos activados correctamente' : 'Envíos desactivados correctamente',
+                {
+                    id: loadingToast,
+                    duration: 2000,
+                }
+            );
+
+            fetchClients();
+        } catch (error: any) {
+            toast.dismiss(loadingToast);
+
+            const errorMessage = error.response?.data?.message || error.message || 'Error desconocido';
+
+            toast.error(`Error al cambiar estado de envío: ${errorMessage}`, {
+                duration: 4000,
+            });
+
+            console.error('Error toggling envio:', error);
+        }
+    };
+
+    const filteredClients = clients.filter(c => {
+        // Text search filter
+        const matchesSearch = searchTerm === '' ||
+            c.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            c.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            c.zohoId?.includes(searchTerm);
+
+        // Estado CRM filter
+        const matchesEstadoCrm = estadoCrmFilter === '' || c.estado === estadoCrmFilter;
+
+        // Estado Envío filter
+        const matchesEstadoEnvio = estadoEnvioFilter === '' ||
+            (estadoEnvioFilter === 'activo' && c.sendSettings?.active) ||
+            (estadoEnvioFilter === 'inactivo' && !c.sendSettings?.active);
+
+        // Warmup filter
+        let matchesWarmup = true;
+        if (warmupFilter !== '') {
+            const settings = c.sendSettings;
+            if (!settings) {
+                matchesWarmup = warmupFilter === 'sin_config';
+            } else {
+                const progress = (settings.currentDailyLimit / settings.targetDailyLimit) * 100;
+                if (warmupFilter === 'completado') {
+                    matchesWarmup = progress >= 100;
+                } else if (warmupFilter === 'en_progreso') {
+                    matchesWarmup = progress > 0 && progress < 100;
+                } else if (warmupFilter === 'sin_config') {
+                    matchesWarmup = false;
+                }
+            }
+        }
+
+        return matchesSearch && matchesEstadoCrm && matchesEstadoEnvio && matchesWarmup;
+    });
 
     return (
         <div className="bg-gray-50 min-h-screen p-8">
-            <header className="mb-8 flex items-center justify-between">
+            <header className="mb-6 flex items-center justify-between">
                 <h1 className="text-3xl font-bold text-gray-900">Gestión de Clientes</h1>
                 <div className="relative">
                     <input
@@ -222,40 +286,128 @@ export default function ClientsPage() {
                 </div>
             </header>
 
+            {/* Filters Bar */}
+            <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                <div className="flex flex-wrap items-center gap-4">
+                    <span className="text-sm font-medium text-gray-600 flex items-center gap-1">
+                        <Filter size={14} />
+                        Filtros:
+                    </span>
+
+                    {/* Estado CRM Filter */}
+                    <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium text-gray-700">Estado CRM:</label>
+                        <select
+                            value={estadoCrmFilter}
+                            onChange={(e) => setEstadoCrmFilter(e.target.value)}
+                            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+                        >
+                            <option value="">Todos</option>
+                            <option value="Envío activo">Envío activo</option>
+                            <option value="Entrevista">Entrevista</option>
+                            <option value="Contratado">Contratado</option>
+                            <option value="Cerrado">Cerrado</option>
+                            <option value="Pausado">Pausado</option>
+                        </select>
+                    </div>
+
+                    {/* Estado Envío Filter */}
+                    <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium text-gray-700">Estado Envío:</label>
+                        <select
+                            value={estadoEnvioFilter}
+                            onChange={(e) => setEstadoEnvioFilter(e.target.value)}
+                            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+                        >
+                            <option value="">Todos</option>
+                            <option value="activo">Activo</option>
+                            <option value="inactivo">Inactivo</option>
+                        </select>
+                    </div>
+
+                    {/* Warmup Filter */}
+                    <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium text-gray-700">Warmup:</label>
+                        <select
+                            value={warmupFilter}
+                            onChange={(e) => setWarmupFilter(e.target.value)}
+                            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+                        >
+                            <option value="">Todos</option>
+                            <option value="en_progreso">En progreso</option>
+                            <option value="completado">Completado</option>
+                            <option value="sin_config">Sin configurar</option>
+                        </select>
+                    </div>
+
+                    {/* Clear Filters Button */}
+                    {(estadoCrmFilter || estadoEnvioFilter || warmupFilter) && (
+                        <button
+                            onClick={() => {
+                                setEstadoCrmFilter('');
+                                setEstadoEnvioFilter('');
+                                setWarmupFilter('');
+                            }}
+                            className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition flex items-center gap-1"
+                        >
+                            <X size={14} />
+                            Limpiar filtros
+                        </button>
+                    )}
+
+                    {/* Results count */}
+                    <span className="ml-auto text-sm text-gray-500">
+                        {filteredClients.length} de {clients.length} clientes
+                    </span>
+                </div>
+            </div>
+
             {editingClient && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6">
-                        {/* Header */}
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold">Configurar: {editingClient.nombre}</h2>
-                            <button onClick={() => setEditingClient(null)} className="text-gray-500 hover:text-gray-700">
-                                <X size={24} />
-                            </button>
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+                        {/* Header Fijo */}
+                        <div className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-xl">
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <p className="text-blue-100 text-sm font-medium">Configuración de cliente</p>
+                                    <h2 className="text-2xl font-bold text-white">{editingClient.nombre} {editingClient.apellido}</h2>
+                                    <p className="text-blue-200 text-sm mt-1">{editingClient.email}</p>
+                                </div>
+                                <button
+                                    onClick={() => setEditingClient(null)}
+                                    className="text-white/80 hover:text-white hover:bg-white/20 p-2 rounded-lg transition-all"
+                                >
+                                    <X size={24} />
+                                </button>
+                            </div>
                         </div>
 
                         {/* Navegación por pestañas */}
-                        <div className="flex border-b mb-6">
+                        <div className="flex-shrink-0 flex border-b bg-gray-50 px-6">
                             <button
-                                className={`px-4 py-2 font-medium transition-colors ${
+                                className={`px-5 py-3 font-medium transition-colors ${
                                     activeTab === 'warmup'
-                                        ? 'border-b-2 border-blue-600 text-blue-600'
-                                        : 'text-gray-500 hover:text-gray-700'
+                                        ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
+                                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
                                 }`}
                                 onClick={() => setActiveTab('warmup')}
                             >
                                 Límites y Warmup
                             </button>
                             <button
-                                className={`px-4 py-2 font-medium transition-colors ${
+                                className={`px-5 py-3 font-medium transition-colors ${
                                     activeTab === 'criteria'
-                                        ? 'border-b-2 border-blue-600 text-blue-600'
-                                        : 'text-gray-500 hover:text-gray-700'
+                                        ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
+                                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
                                 }`}
                                 onClick={() => setActiveTab('criteria')}
                             >
                                 Criterios de Búsqueda
                             </button>
                         </div>
+
+                        {/* Contenido Scrollable */}
+                        <div className="flex-1 overflow-y-auto p-6">
 
                         {/* Pestaña Warmup */}
                         {activeTab === 'warmup' && (
@@ -646,17 +798,20 @@ export default function ClientsPage() {
                             </div>
                         )}
 
-                        {/* Botones de acción */}
-                        <div className="mt-8 flex justify-end gap-3">
+                        </div>
+                        {/* Fin Contenido Scrollable */}
+
+                        {/* Footer Fijo con Botones */}
+                        <div className="flex-shrink-0 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex justify-end gap-3">
                             <button
                                 onClick={() => setEditingClient(null)}
-                                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                                className="px-5 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 font-medium transition-colors"
                             >
                                 Cancelar
                             </button>
                             <button
                                 onClick={handleSave}
-                                className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                                className="px-5 py-2.5 text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2 transition-colors shadow-sm"
                             >
                                 <Save size={18} />
                                 Guardar Cambios
@@ -678,74 +833,110 @@ export default function ClientsPage() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {filteredClients.map((client) => {
-                            const settings = client.sendSettings;
-                            return (
-                                <tr key={client.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4">
-                                        <div className="font-medium text-gray-900">{client.nombre} {client.apellido}</div>
-                                        <div className="text-sm text-gray-500">{client.email}</div>
-                                        <div className="text-xs text-gray-400 font-mono">{client.zohoId}</div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <select
-                                            value={client.estado || 'Envío activo'}
-                                            onChange={(e) => handleEstadoChange(client.id, e.target.value)}
-                                            className={`px-3 py-1.5 rounded-lg text-sm font-medium border-2 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                                client.estado === 'Envío activo' ? 'bg-green-50 border-green-200 text-green-800' :
-                                                client.estado === 'Entrevista' ? 'bg-blue-50 border-blue-200 text-blue-800' :
-                                                client.estado === 'Contratado' ? 'bg-purple-50 border-purple-200 text-purple-800' :
-                                                client.estado === 'Cerrado' ? 'bg-red-50 border-red-200 text-red-800' :
-                                                client.estado === 'Pausado' ? 'bg-yellow-50 border-yellow-200 text-yellow-800' :
-                                                'bg-gray-50 border-gray-200 text-gray-800'
-                                            }`}
-                                        >
-                                            <option value="Envío activo">✅ Envío activo</option>
-                                            <option value="Entrevista">📞 Entrevista</option>
-                                            <option value="Contratado">🎉 Contratado</option>
-                                            <option value="Cerrado">🔒 Cerrado</option>
-                                            <option value="Pausado">⏸️ Pausado</option>
-                                        </select>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {settings?.active ? (
-                                            <span className="text-green-600 flex items-center gap-1">
-                                                <div className="w-2 h-2 bg-green-500 rounded-full"></div> Activo
-                                            </span>
-                                        ) : (
-                                            <span className="text-gray-400 flex items-center gap-1">
-                                                <div className="w-2 h-2 bg-gray-400 rounded-full"></div> Inactivo
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {settings ? (
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        {loading ? (
+                            <tr>
+                                <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                                        <span>Cargando clientes...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        ) : filteredClients.length === 0 ? (
+                            <tr>
+                                <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <Filter size={32} className="text-gray-300" />
+                                        <span className="font-medium">No se encontraron clientes</span>
+                                        <span className="text-sm">
+                                            {(searchTerm || estadoCrmFilter || estadoEnvioFilter || warmupFilter)
+                                                ? 'Intenta ajustar los filtros de búsqueda'
+                                                : 'No hay clientes registrados'}
+                                        </span>
+                                    </div>
+                                </td>
+                            </tr>
+                        ) : (
+                            filteredClients.map((client) => {
+                                const settings = client.sendSettings;
+                                return (
+                                    <tr key={client.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4">
+                                            <div className="font-medium text-gray-900">{client.nombre} {client.apellido}</div>
+                                            <div className="text-sm text-gray-500">{client.email}</div>
+                                            <div className="text-xs text-gray-400 font-mono">{client.zohoId}</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <select
+                                                value={client.estado || 'Envío activo'}
+                                                onChange={(e) => handleEstadoChange(client.id, e.target.value)}
+                                                className={`px-3 py-1.5 rounded-lg text-sm font-medium border-2 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                                    client.estado === 'Envío activo' ? 'bg-green-50 border-green-200 text-green-800' :
+                                                    client.estado === 'Entrevista' ? 'bg-blue-50 border-blue-200 text-blue-800' :
+                                                    client.estado === 'Contratado' ? 'bg-purple-50 border-purple-200 text-purple-800' :
+                                                    client.estado === 'Cerrado' ? 'bg-red-50 border-red-200 text-red-800' :
+                                                    client.estado === 'Pausado' ? 'bg-yellow-50 border-yellow-200 text-yellow-800' :
+                                                    'bg-gray-50 border-gray-200 text-gray-800'
+                                                }`}
+                                            >
+                                                <option value="Envío activo">Envío activo</option>
+                                                <option value="Entrevista">Entrevista</option>
+                                                <option value="Contratado">Contratado</option>
+                                                <option value="Cerrado">Cerrado</option>
+                                                <option value="Pausado">Pausado</option>
+                                            </select>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <button
+                                                onClick={() => handleToggleEnvio(client.id, settings?.active ?? false)}
+                                                className="flex items-center gap-3 cursor-pointer"
+                                                title={settings?.active ? 'Click para desactivar envíos' : 'Click para activar envíos'}
+                                            >
+                                                {/* Toggle Switch */}
+                                                <div
+                                                    className="relative inline-block w-12 h-7 rounded-full transition-all duration-300 ease-in-out"
+                                                    style={{
+                                                        backgroundColor: settings?.active ? '#22c55e' : '#d1d5db',
+                                                    }}
+                                                >
                                                     <div
-                                                        className="h-full bg-blue-500"
-                                                        style={{ width: `${Math.min((settings.currentDailyLimit / settings.targetDailyLimit) * 100, 100)}%` }}
-                                                    ></div>
+                                                        className="absolute top-1 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-300 ease-in-out"
+                                                        style={{
+                                                            left: settings?.active ? '26px' : '4px',
+                                                        }}
+                                                    />
                                                 </div>
-                                                <span className="text-sm font-medium">
-                                                    {settings.currentDailyLimit} / {settings.targetDailyLimit}
-                                                </span>
-                                            </div>
-                                        ) : (
-                                            <span className="text-gray-400 italic">Sin config</span>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <button
-                                            onClick={() => handleEdit(client)}
-                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                                        >
-                                            <Settings size={20} />
-                                        </button>
-                                    </td>
-                                </tr>
-                            );
-                        })}
+                                            </button>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {settings ? (
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-20 h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full bg-blue-500 rounded-full"
+                                                            style={{ width: `${Math.min((settings.currentDailyLimit / settings.targetDailyLimit) * 100, 100)}%` }}
+                                                        ></div>
+                                                    </div>
+                                                    <span className="text-sm font-semibold text-gray-800">
+                                                        {settings.currentDailyLimit} / {settings.targetDailyLimit}
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-500 italic text-sm">Sin config</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <button
+                                                onClick={() => handleEdit(client)}
+                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                                            >
+                                                <Settings size={20} />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                );
+                            })
+                        )}
                     </tbody>
                 </table>
             </div>
