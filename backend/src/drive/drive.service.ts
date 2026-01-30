@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { google, drive_v3 } from 'googleapis';
-import * as path from 'path';
 import { DriveFile, EmailAttachment } from './interfaces/drive-file.interface';
 import { Client } from '../entities/client.entity';
+import { createGoogleAuth } from '../common/utils/google-auth.util';
 
 @Injectable()
 export class DriveService {
@@ -15,10 +15,7 @@ export class DriveService {
    * Creates an authenticated Google Drive client
    */
   private async getDriveClient(): Promise<drive_v3.Drive> {
-    const keyFilePath = path.join(process.cwd(), 'google-creds.json');
-
-    const auth = new google.auth.GoogleAuth({
-      keyFile: keyFilePath,
+    const auth = createGoogleAuth({
       scopes: ['https://www.googleapis.com/auth/drive.readonly'],
     });
 

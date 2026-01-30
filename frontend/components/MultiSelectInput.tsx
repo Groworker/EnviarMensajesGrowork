@@ -18,8 +18,8 @@ export function MultiSelectInput({
   placeholder,
   disabled = false,
 }: MultiSelectInputProps) {
-  // Normalizar valores - asegurar que siempre sea un array
-  const values = Array.isArray(rawValues)
+  // Normalizar valores - asegurar que siempre sea un array de strings
+  const values: string[] = Array.isArray(rawValues)
     ? rawValues
     : rawValues?.values && Array.isArray(rawValues.values)
     ? rawValues.values

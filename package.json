@@ -4,7 +4,11 @@
     "scripts": {
         "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
         "dev:backend": "cd backend && npm run start:dev",
-        "dev:frontend": "cd frontend && npm run dev -- -p 3001"
+        "dev:frontend": "cd frontend && npm run dev -- -p 3001",
+        "script:insert-test-offer": "node scripts/db/insert-test-offer.js",
+        "script:warmup-migration": "node scripts/db/run-warmup-migration.js",
+        "script:update-limits": "node scripts/db/update-target-limits.js",
+        "script:test-matching": "node scripts/testing/test-matching.js"
     },
     "devDependencies": {
         "@tailwindcss/postcss": "^4.1.18",

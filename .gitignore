@@ -84,13 +84,8 @@ temp/
 *.tsbuildinfo
 next-env.d.ts
 
-# Development/test scripts
-insert-test-offer.js
-run-warmup-migration.js
-run-delay-migration.js
-test-matching.js
-update-target-limits.js
-test-port-3000.js
+# Development/test scripts (legacy - now in scripts/ folder)
+# Los scripts de utilidad ahora estan organizados en scripts/db/ y scripts/testing/
 
 # Windows specific
 nul

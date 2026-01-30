@@ -1,0 +1,44 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Credentials (NEVER include in Docker image)
+*.pem
+*.key
+*-creds.json
+google-creds.json
+credentials.json
+service-account.json
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Logs
+*.log
+logs
+
+# Testing
+coverage
+.nyc_output
+
+# Git
+.git
+.gitignore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+README.md
+*.md

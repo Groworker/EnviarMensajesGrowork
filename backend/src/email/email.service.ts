@@ -2,8 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { google } from 'googleapis';
 import * as nodemailer from 'nodemailer';
-import * as path from 'path';
 import { EmailAttachment } from '../drive/interfaces/drive-file.interface';
+import { createGoogleAuth } from '../common/utils/google-auth.util';
 
 export interface EmailSendResult {
   messageId: string;
@@ -24,17 +24,10 @@ export class EmailService {
     attachments?: EmailAttachment[], // Optional PDF attachments
   ): Promise<EmailSendResult> {
     try {
-      // 1. Load Credentials
-      // We expect a google-creds.json file in the root or config folder
-      const keyFilePath = path.join(process.cwd(), 'google-creds.json');
-
-      // 2. Create JWT Client with Domain-Wide Delegation
-      const auth = new google.auth.GoogleAuth({
-        keyFile: keyFilePath,
+      // 1. Create JWT Client with Domain-Wide Delegation
+      const auth = createGoogleAuth({
         scopes: ['https://www.googleapis.com/auth/gmail.send'],
-        clientOptions: {
-          subject: fromEmail,
-        },
+        subject: fromEmail,
       });
 
       // Get authenticated client

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { google, gmail_v1 } from 'googleapis';
-import * as path from 'path';
+import { createGoogleAuth } from '../common/utils/google-auth.util';
 
 export interface GmailMessage {
   id: string;
@@ -23,17 +23,12 @@ export class GmailReaderService {
    * Create authenticated Gmail client for a specific user email
    */
   private async getGmailClient(userEmail: string): Promise<gmail_v1.Gmail> {
-    const keyFilePath = path.join(process.cwd(), 'google-creds.json');
-
-    const auth = new google.auth.GoogleAuth({
-      keyFile: keyFilePath,
+    const auth = createGoogleAuth({
       scopes: [
         'https://www.googleapis.com/auth/gmail.readonly',
         'https://www.googleapis.com/auth/gmail.send',
       ],
-      clientOptions: {
-        subject: userEmail,
-      },
+      subject: userEmail,
     });
 
     return google.gmail({ version: 'v1', auth: auth as any });
