@@ -1,0 +1,49 @@
+# Git
+.git
+.gitignore
+
+# Dependencies (will be installed in Docker)
+node_modules
+*/node_modules
+
+# Build outputs (will be built in Docker)
+dist
+.next
+out
+
+# Environment files (use EasyPanel env vars)
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env.local
+
+# Credentials (NEVER include)
+*.pem
+*.key
+*-creds.json
+google-creds.json
+
+# IDE
+.idea
+.vscode
+
+# Logs
+*.log
+logs
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Scripts (not needed in production)
+scripts/
+
+# Docs
+docs/
+*.md
+
+# Test files
+coverage
+*.spec.ts
+*.test.ts
