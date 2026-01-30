@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Client } from '../../entities/client.entity';
 import { ClientSendSettings } from '../../entities/client-send-settings.entity';
+import { EmailSend, EmailSendStatus } from '../../entities/email-send.entity';
 import {
   CreateClientDto,
   UpdateClientDto,
@@ -10,6 +11,20 @@ import {
   UpdateEstadoDto,
 } from './dto';
 import { ZohoService } from '../../zoho/zoho.service';
+
+export interface ClientEmailStats {
+  clientId: number;
+  clientName: string;
+  totalEmails: number;
+  sent: number;
+  failed: number;
+  bounced: number;
+  pendingReview: number;
+  rejected: number;
+  reserved: number;
+  successRate: number;
+  lastEmailAt: Date | null;
+}
 
 @Injectable()
 export class ClientsService {
@@ -20,6 +35,8 @@ export class ClientsService {
     private readonly clientRepository: Repository<Client>,
     @InjectRepository(ClientSendSettings)
     private readonly settingsRepository: Repository<ClientSendSettings>,
+    @InjectRepository(EmailSend)
+    private readonly emailSendRepository: Repository<EmailSend>,
     private readonly zohoService: ZohoService,
   ) {}
 
@@ -106,6 +123,49 @@ export class ClientsService {
   }
 
   /**
+   * Activate all clients for email sending (set sendSettings.active to true)
+   */
+  async activateAll(): Promise<{ updated: number }> {
+    const result = await this.settingsRepository
+      .createQueryBuilder()
+      .update()
+      .set({ active: true })
+      .execute();
+    this.logger.log(`Activated email sending for ${result.affected} clients`);
+    return { updated: result.affected || 0 };
+  }
+
+  /**
+   * Deactivate all clients for email sending (set sendSettings.active to false)
+   */
+  async deactivateAll(): Promise<{ updated: number }> {
+    const result = await this.settingsRepository
+      .createQueryBuilder()
+      .update()
+      .set({ active: false })
+      .execute();
+    this.logger.log(`Deactivated email sending for ${result.affected} clients`);
+    return { updated: result.affected || 0 };
+  }
+
+  /**
+   * Set preview mode for all clients
+   */
+  async setPreviewModeAll(
+    enabled: boolean,
+  ): Promise<{ updated: number }> {
+    const result = await this.settingsRepository
+      .createQueryBuilder()
+      .update()
+      .set({ previewEnabled: enabled })
+      .execute();
+    this.logger.log(
+      `Set preview mode to ${enabled} for ${result.affected} clients`,
+    );
+    return { updated: result.affected || 0 };
+  }
+
+  /**
    * Update client estado (status) and sync with Zoho CRM
    */
   async updateEstado(
@@ -151,5 +211,62 @@ export class ClientsService {
       );
       throw error;
     }
+  }
+
+  /**
+   * Get email statistics for a specific client
+   */
+  async getClientEmailStats(clientId: number): Promise<ClientEmailStats> {
+    const client = await this.findOne(clientId);
+
+    // Get counts by status using a single query with GROUP BY
+    const statusCounts = await this.emailSendRepository
+      .createQueryBuilder('email')
+      .select('email.status', 'status')
+      .addSelect('COUNT(*)', 'count')
+      .where('email.clientId = :clientId', { clientId })
+      .groupBy('email.status')
+      .getRawMany();
+
+    // Get last email date
+    const lastEmail = await this.emailSendRepository
+      .createQueryBuilder('email')
+      .select('MAX(email.sentAt)', 'lastAt')
+      .where('email.clientId = :clientId', { clientId })
+      .getRawOne();
+
+    // Convert to object for easy access
+    const counts: Record<string, number> = {};
+    statusCounts.forEach((row) => {
+      counts[row.status] = parseInt(row.count, 10);
+    });
+
+    const sent = counts[EmailSendStatus.SENT] || 0;
+    const failed = counts[EmailSendStatus.FAILED] || 0;
+    const bounced = counts[EmailSendStatus.BOUNCED] || 0;
+    const pendingReview = counts[EmailSendStatus.PENDING_REVIEW] || 0;
+    const rejected = counts[EmailSendStatus.REJECTED] || 0;
+    const reserved = counts[EmailSendStatus.RESERVED] || 0;
+    const approved = counts[EmailSendStatus.APPROVED] || 0;
+
+    const totalEmails = sent + failed + bounced + pendingReview + rejected + reserved + approved;
+
+    // Success rate only counts completed emails (not pending or reserved)
+    const completedEmails = sent + failed + bounced + rejected;
+    const successRate = completedEmails > 0 ? Math.round((sent / completedEmails) * 100) : 0;
+
+    return {
+      clientId,
+      clientName: `${client.nombre || ''} ${client.apellido || ''}`.trim(),
+      totalEmails,
+      sent,
+      failed,
+      bounced,
+      pendingReview,
+      rejected,
+      reserved,
+      successRate,
+      lastEmailAt: lastEmail?.lastAt || null,
+    };
   }
 }

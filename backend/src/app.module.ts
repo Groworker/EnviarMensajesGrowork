@@ -10,11 +10,15 @@ import { ClientSendSettings } from './entities/client-send-settings.entity';
 import { SendJob } from './entities/send-job.entity';
 import { EmailSend } from './entities/email-send.entity';
 import { EmailReputation } from './entities/email-reputation.entity';
+import { EmailResponse } from './entities/email-response.entity';
+import { GlobalSendConfig } from './entities/global-send-config.entity';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { WorkerModule } from './worker/worker.module';
 import { ApiModule } from './api/api.module';
 import { EmailModule } from './email/email.module';
 import { ZohoModule } from './zoho/zoho.module';
+import { AiModule } from './ai/ai.module';
+import { DriveModule } from './drive/drive.module';
 import configuration from './config/configuration';
 import { envValidationSchema } from './config/env.validation';
 
@@ -47,6 +51,8 @@ import { envValidationSchema } from './config/env.validation';
           SendJob,
           EmailSend,
           EmailReputation,
+          EmailResponse,
+          GlobalSendConfig,
         ],
         synchronize: false, // We will use migrations
         ssl: configService.get<string>('DATABASE_SSL') === 'true',
@@ -57,8 +63,10 @@ import { envValidationSchema } from './config/env.validation';
     ApiModule,
     EmailModule,
     ZohoModule,
+    AiModule,
+    DriveModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

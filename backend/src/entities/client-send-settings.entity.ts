@@ -46,6 +46,9 @@ export class ClientSendSettings {
   @Column({ default: true })
   active: boolean;
 
+  @Column({ name: 'preview_enabled', default: true })
+  previewEnabled: boolean; // If true, emails go to pending_review before sending
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

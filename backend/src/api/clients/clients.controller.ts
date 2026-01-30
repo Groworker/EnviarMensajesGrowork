@@ -11,7 +11,7 @@ import {
   HttpStatus,
   NotFoundException,
 } from '@nestjs/common';
-import { ClientsService } from './clients.service';
+import { ClientsService, ClientEmailStats } from './clients.service';
 import {
   CreateClientDto,
   UpdateClientDto,
@@ -28,6 +28,16 @@ export class ClientsController {
   @Get()
   async findAll(): Promise<Client[]> {
     return this.clientsService.findAll();
+  }
+
+  /**
+   * Get email statistics for a specific client
+   */
+  @Get(':id/email-stats')
+  async getClientEmailStats(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<ClientEmailStats> {
+    return this.clientsService.getClientEmailStats(id);
   }
 
   @Get(':id')
@@ -68,5 +78,34 @@ export class ClientsController {
     @Body() updateEstadoDto: UpdateEstadoDto,
   ): Promise<Client> {
     return this.clientsService.updateEstado(id, updateEstadoDto);
+  }
+
+  /**
+   * Activate all clients (set estado to "Envío Activo")
+   */
+  @Post('bulk/activate')
+  @HttpCode(HttpStatus.OK)
+  async activateAll(): Promise<{ updated: number }> {
+    return this.clientsService.activateAll();
+  }
+
+  /**
+   * Deactivate all clients (set estado to "Pausado")
+   */
+  @Post('bulk/deactivate')
+  @HttpCode(HttpStatus.OK)
+  async deactivateAll(): Promise<{ updated: number }> {
+    return this.clientsService.deactivateAll();
+  }
+
+  /**
+   * Set preview mode for all clients
+   */
+  @Post('bulk/preview-mode')
+  @HttpCode(HttpStatus.OK)
+  async setPreviewModeAll(
+    @Body() body: { enabled: boolean },
+  ): Promise<{ updated: number }> {
+    return this.clientsService.setPreviewModeAll(body.enabled);
   }
 }

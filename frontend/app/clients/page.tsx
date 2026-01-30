@@ -2,16 +2,78 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
-import { Search, Settings, Save, X, Info, AlertCircle, MapPin, Briefcase, Filter } from 'lucide-react';
+import { Search, Settings, Save, X, Info, AlertCircle, MapPin, Briefcase, Filter, BarChart3, Mail, CheckCircle, XCircle, Clock, AlertTriangle, MessageSquare, RefreshCw, RotateCcw, Inbox } from 'lucide-react';
 import { MultiSelectInput } from '@/components/MultiSelectInput';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ClassificationBadge } from '@/components/ClassificationBadge';
 import toast from 'react-hot-toast';
+
+type Classification =
+  | 'negativa'
+  | 'automatica'
+  | 'entrevista'
+  | 'mas_informacion'
+  | 'contratado'
+  | 'sin_clasificar';
+
+interface ClientResponse {
+    id: number;
+    fromEmail: string;
+    subject: string;
+    bodyText: string | null;
+    classification: Classification;
+    classificationConfidence: number | null;
+    classificationReasoning: string | null;
+    isRead: boolean;
+    receivedAt: string;
+    emailSend?: {
+        jobOffer?: {
+            titulo: string;
+            empresa: string;
+        };
+    };
+}
+
+interface ClientEmailStats {
+    clientId: number;
+    clientName: string;
+    totalEmails: number;
+    sent: number;
+    failed: number;
+    bounced: number;
+    pendingReview: number;
+    rejected: number;
+    reserved: number;
+    successRate: number;
+    lastEmailAt: string | null;
+}
 
 export default function ClientsPage() {
     const [clients, setClients] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [editingClient, setEditingClient] = useState<any | null>(null);
-    const [activeTab, setActiveTab] = useState<'warmup' | 'criteria'>('warmup');
+    const [activeTab, setActiveTab] = useState<'warmup' | 'criteria' | 'stats' | 'responses'>('warmup');
+    const [emailStats, setEmailStats] = useState<ClientEmailStats | null>(null);
+    const [loadingStats, setLoadingStats] = useState(false);
+    const [clientResponses, setClientResponses] = useState<ClientResponse[]>([]);
+    const [loadingResponses, setLoadingResponses] = useState(false);
+    const [syncingResponses, setSyncingResponses] = useState(false);
+
+    // Confirm dialog state
+    const [confirmDialog, setConfirmDialog] = useState<{
+        open: boolean;
+        title: string;
+        description: string;
+        onConfirm: () => void;
+        variant: 'danger' | 'warning' | 'info';
+    }>({
+        open: false,
+        title: '',
+        description: '',
+        onConfirm: () => {},
+        variant: 'info',
+    });
 
     // Column filters
     const [estadoCrmFilter, setEstadoCrmFilter] = useState<string>('');
@@ -34,7 +96,58 @@ export default function ClientsPage() {
         fetchClients();
     }, []);
 
-    const handleEdit = (client: any) => {
+    const fetchEmailStats = async (clientId: number) => {
+        setLoadingStats(true);
+        try {
+            const res = await api.get(`/clients/${clientId}/email-stats`);
+            setEmailStats(res.data);
+        } catch (error) {
+            console.error('Error fetching email stats:', error);
+            setEmailStats(null);
+        } finally {
+            setLoadingStats(false);
+        }
+    };
+
+    const fetchClientResponses = async (clientId: number) => {
+        setLoadingResponses(true);
+        try {
+            const res = await api.get(`/email-responses/client/${clientId}`);
+            setClientResponses(res.data);
+        } catch (error) {
+            console.error('Error fetching client responses:', error);
+            setClientResponses([]);
+        } finally {
+            setLoadingResponses(false);
+        }
+    };
+
+    const handleSyncClientResponses = async (clientId: number) => {
+        setSyncingResponses(true);
+        const loadingToast = toast.loading('Sincronizando respuestas...');
+        try {
+            await api.post(`/email-responses/sync/${clientId}`);
+            toast.success('Respuestas sincronizadas', { id: loadingToast });
+            fetchClientResponses(clientId);
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Error al sincronizar', { id: loadingToast });
+        } finally {
+            setSyncingResponses(false);
+        }
+    };
+
+    const handleReclassifyResponse = async (responseId: number, clientId: number) => {
+        const loadingToast = toast.loading('Reclasificando...');
+        try {
+            await api.post(`/email-responses/${responseId}/reclassify`);
+            toast.success('Respuesta reclasificada', { id: loadingToast });
+            fetchClientResponses(clientId);
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Error al reclasificar', { id: loadingToast });
+        }
+    };
+
+    const handleEdit = (client: any, openTab: 'warmup' | 'criteria' | 'stats' | 'responses' = 'warmup') => {
         // Ensure settings object exists with field-level defaults
         const settings = {
             ...client.sendSettings,
@@ -69,6 +182,18 @@ export default function ClientsPage() {
         };
 
         setEditingClient(normalizedClient);
+        setEmailStats(null); // Reset stats when opening a new client
+        setClientResponses([]); // Reset responses when opening a new client
+        setActiveTab(openTab);
+
+        // If opening stats tab directly, fetch stats
+        if (openTab === 'stats') {
+            fetchEmailStats(client.id);
+        }
+        // If opening responses tab directly, fetch responses
+        if (openTab === 'responses') {
+            fetchClientResponses(client.id);
+        }
     };
 
     const handleSave = async () => {
@@ -234,6 +359,119 @@ export default function ClientsPage() {
         }
     };
 
+    const handleTogglePreviewMode = async (clientId: number, currentPreviewEnabled: boolean) => {
+        const newPreviewEnabled = !currentPreviewEnabled;
+        const loadingToast = toast.loading(
+            newPreviewEnabled ? 'Activando modo preview...' : 'Activando envío automático...'
+        );
+
+        try {
+            await api.patch(`/clients/${clientId}/settings`, { previewEnabled: newPreviewEnabled });
+
+            toast.success(
+                newPreviewEnabled
+                    ? 'Modo preview activado - Los emails requieren aprobación'
+                    : 'Envío automático activado - Los emails se envían directamente',
+                {
+                    id: loadingToast,
+                    duration: 3000,
+                }
+            );
+
+            fetchClients();
+        } catch (error: any) {
+            toast.dismiss(loadingToast);
+
+            const errorMessage = error.response?.data?.message || error.message || 'Error desconocido';
+
+            toast.error(`Error al cambiar modo: ${errorMessage}`, {
+                duration: 4000,
+            });
+
+            console.error('Error toggling preview mode:', error);
+        }
+    };
+
+    const executeActivateAll = async () => {
+        const loadingToast = toast.loading('Activando envío para todos los clientes...');
+        try {
+            const response = await api.post('/clients/bulk/activate');
+            toast.success(`Envío activado para ${response.data.updated} clientes`, { id: loadingToast });
+            fetchClients();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Error al activar envío', { id: loadingToast });
+        }
+    };
+
+    const executeDeactivateAll = async () => {
+        const loadingToast = toast.loading('Pausando envío para todos los clientes...');
+        try {
+            const response = await api.post('/clients/bulk/deactivate');
+            toast.success(`Envío pausado para ${response.data.updated} clientes`, { id: loadingToast });
+            fetchClients();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Error al pausar envío', { id: loadingToast });
+        }
+    };
+
+    const handleActivateAll = () => {
+        setConfirmDialog({
+            open: true,
+            title: 'Activar envío para todos',
+            description: 'Se activará el envío de emails para todos los clientes. Comenzarán a recibir ofertas de trabajo automáticamente.',
+            onConfirm: executeActivateAll,
+            variant: 'info',
+        });
+    };
+
+    const handleDeactivateAll = () => {
+        setConfirmDialog({
+            open: true,
+            title: 'Pausar envío para todos',
+            description: 'Se pausará el envío de emails para todos los clientes. No se enviarán más ofertas hasta que se reactive.',
+            onConfirm: executeDeactivateAll,
+            variant: 'warning',
+        });
+    };
+
+    const executeSetPreviewModeAll = async (previewEnabled: boolean) => {
+        const loadingToast = toast.loading(
+            previewEnabled ? 'Activando modo preview para todos...' : 'Activando envío automático para todos...'
+        );
+        try {
+            const response = await api.post('/clients/bulk/preview-mode', { enabled: previewEnabled });
+            toast.success(
+                previewEnabled
+                    ? `Modo preview activado para ${response.data.updated} clientes`
+                    : `Envío automático activado para ${response.data.updated} clientes`,
+                { id: loadingToast }
+            );
+            fetchClients();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Error al cambiar modo', { id: loadingToast });
+        }
+    };
+
+    const handleSetPreviewModeAll = (previewEnabled: boolean) => {
+        if (previewEnabled) {
+            setConfirmDialog({
+                open: true,
+                title: 'Activar modo preview para todos',
+                description: 'Todos los emails requerirán aprobación manual antes de ser enviados. Podrás revisar y editar cada email.',
+                onConfirm: () => executeSetPreviewModeAll(true),
+                variant: 'info',
+            });
+        } else {
+            setConfirmDialog({
+                open: true,
+                title: 'Activar envío automático para todos',
+                description: '¡Atención! Los emails se enviarán automáticamente sin revisión previa. No podrás ver ni editar los emails antes del envío.',
+                onConfirm: () => executeSetPreviewModeAll(false),
+                variant: 'warning',
+            });
+        }
+    };
+
     const filteredClients = clients.filter(c => {
         // Text search filter
         const matchesSearch = searchTerm === '' ||
@@ -272,17 +510,60 @@ export default function ClientsPage() {
 
     return (
         <div className="bg-gray-50 min-h-screen p-8">
-            <header className="mb-6 flex items-center justify-between">
-                <h1 className="text-3xl font-bold text-gray-900">Gestión de Clientes</h1>
-                <div className="relative">
-                    <input
-                        type="text"
-                        placeholder="Buscar cliente..."
-                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                    <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+            <header className="mb-6">
+                <div className="flex items-center justify-between">
+                    <h1 className="text-3xl font-bold text-gray-900">Gestión de Clientes</h1>
+                    <div className="relative">
+                        <input
+                            type="text"
+                            placeholder="Buscar cliente..."
+                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                        <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                    </div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-3">
+                    {/* Estado Envío buttons */}
+                    <button
+                        onClick={handleActivateAll}
+                        className="inline-flex items-center gap-2 px-4 py-2 border border-green-300 bg-green-50 text-green-700 text-sm font-medium rounded-lg hover:bg-green-100 transition-colors"
+                    >
+                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                        Activar Envío (Todos)
+                    </button>
+                    <button
+                        onClick={handleDeactivateAll}
+                        className="inline-flex items-center gap-2 px-4 py-2 border border-yellow-300 bg-yellow-50 text-yellow-700 text-sm font-medium rounded-lg hover:bg-yellow-100 transition-colors"
+                    >
+                        <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
+                        Pausar Envío (Todos)
+                    </button>
+
+                    {/* Separador */}
+                    <div className="w-px h-8 bg-gray-300 self-center"></div>
+
+                    {/* Modo Preview buttons */}
+                    <button
+                        onClick={() => handleSetPreviewModeAll(true)}
+                        className="inline-flex items-center gap-2 px-4 py-2 border border-blue-300 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        Modo Preview (Todos)
+                    </button>
+                    <button
+                        onClick={() => handleSetPreviewModeAll(false)}
+                        className="inline-flex items-center gap-2 px-4 py-2 border border-orange-300 bg-orange-50 text-orange-700 text-sm font-medium rounded-lg hover:bg-orange-100 transition-colors"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Envío Automático (Todos)
+                    </button>
                 </div>
             </header>
 
@@ -403,6 +684,38 @@ export default function ClientsPage() {
                                 onClick={() => setActiveTab('criteria')}
                             >
                                 Criterios de Búsqueda
+                            </button>
+                            <button
+                                className={`px-5 py-3 font-medium transition-colors flex items-center gap-2 ${
+                                    activeTab === 'stats'
+                                        ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
+                                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                                }`}
+                                onClick={() => {
+                                    setActiveTab('stats');
+                                    if (editingClient && !emailStats) {
+                                        fetchEmailStats(editingClient.id);
+                                    }
+                                }}
+                            >
+                                <BarChart3 size={16} />
+                                Estadísticas
+                            </button>
+                            <button
+                                className={`px-5 py-3 font-medium transition-colors flex items-center gap-2 ${
+                                    activeTab === 'responses'
+                                        ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
+                                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                                }`}
+                                onClick={() => {
+                                    setActiveTab('responses');
+                                    if (editingClient && clientResponses.length === 0) {
+                                        fetchClientResponses(editingClient.id);
+                                    }
+                                }}
+                            >
+                                <MessageSquare size={16} />
+                                Respuestas
                             </button>
                         </div>
 
@@ -798,6 +1111,237 @@ export default function ClientsPage() {
                             </div>
                         )}
 
+                        {/* Pestaña Estadísticas */}
+                        {activeTab === 'stats' && (
+                            <div className="space-y-6">
+                                {loadingStats ? (
+                                    <div className="flex items-center justify-center py-12">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                                        <span className="ml-3 text-gray-600">Cargando estadísticas...</span>
+                                    </div>
+                                ) : emailStats ? (
+                                    <>
+                                        {/* Resumen General */}
+                                        <div className="border-2 rounded-lg p-5 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-300 shadow-sm">
+                                            <h3 className="font-bold text-blue-900 mb-4 flex items-center gap-2 text-base">
+                                                <BarChart3 size={20} className="text-blue-600" />
+                                                Resumen de Emails
+                                            </h3>
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                <div className="bg-white rounded-lg p-4 border border-blue-200 text-center">
+                                                    <div className="text-3xl font-bold text-blue-600">{emailStats.totalEmails}</div>
+                                                    <div className="text-sm text-gray-600 mt-1">Total Emails</div>
+                                                </div>
+                                                <div className="bg-white rounded-lg p-4 border border-green-200 text-center">
+                                                    <div className="text-3xl font-bold text-green-600">{emailStats.sent}</div>
+                                                    <div className="text-sm text-gray-600 mt-1">Enviados OK</div>
+                                                </div>
+                                                <div className="bg-white rounded-lg p-4 border border-red-200 text-center">
+                                                    <div className="text-3xl font-bold text-red-600">{emailStats.failed}</div>
+                                                    <div className="text-sm text-gray-600 mt-1">Fallidos</div>
+                                                </div>
+                                                <div className="bg-white rounded-lg p-4 border border-purple-200 text-center">
+                                                    <div className="text-3xl font-bold text-purple-600">{emailStats.successRate}%</div>
+                                                    <div className="text-sm text-gray-600 mt-1">Tasa de Éxito</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Desglose por Estado */}
+                                        <div className="border-2 rounded-lg p-5 bg-gradient-to-br from-gray-50 to-slate-50 border-gray-300 shadow-sm">
+                                            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 text-base">
+                                                <Mail size={20} className="text-gray-600" />
+                                                Desglose por Estado
+                                            </h3>
+                                            <div className="space-y-3">
+                                                <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                                                    <div className="flex items-center gap-3">
+                                                        <CheckCircle size={20} className="text-green-500" />
+                                                        <span className="font-medium text-gray-700">Enviados Correctamente</span>
+                                                    </div>
+                                                    <span className="text-lg font-bold text-green-600">{emailStats.sent}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                                                    <div className="flex items-center gap-3">
+                                                        <Clock size={20} className="text-yellow-500" />
+                                                        <span className="font-medium text-gray-700">Pendientes de Revisión</span>
+                                                    </div>
+                                                    <span className="text-lg font-bold text-yellow-600">{emailStats.pendingReview}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                                                    <div className="flex items-center gap-3">
+                                                        <XCircle size={20} className="text-red-500" />
+                                                        <span className="font-medium text-gray-700">Fallidos</span>
+                                                    </div>
+                                                    <span className="text-lg font-bold text-red-600">{emailStats.failed}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                                                    <div className="flex items-center gap-3">
+                                                        <AlertTriangle size={20} className="text-orange-500" />
+                                                        <span className="font-medium text-gray-700">Rebotados</span>
+                                                    </div>
+                                                    <span className="text-lg font-bold text-orange-600">{emailStats.bounced}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                                                    <div className="flex items-center gap-3">
+                                                        <XCircle size={20} className="text-gray-500" />
+                                                        <span className="font-medium text-gray-700">Rechazados</span>
+                                                    </div>
+                                                    <span className="text-lg font-bold text-gray-600">{emailStats.rejected}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                                                    <div className="flex items-center gap-3">
+                                                        <Clock size={20} className="text-blue-500" />
+                                                        <span className="font-medium text-gray-700">Reservados (En proceso)</span>
+                                                    </div>
+                                                    <span className="text-lg font-bold text-blue-600">{emailStats.reserved}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Última Actividad */}
+                                        {emailStats.lastEmailAt && (
+                                            <div className="border-2 rounded-lg p-4 bg-white border-gray-200">
+                                                <div className="flex items-center gap-2 text-gray-600">
+                                                    <Clock size={16} />
+                                                    <span className="text-sm">
+                                                        Último email: {new Date(emailStats.lastEmailAt).toLocaleString('es-ES', {
+                                                            dateStyle: 'medium',
+                                                            timeStyle: 'short'
+                                                        })}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="text-center py-12 text-gray-500">
+                                        <BarChart3 size={48} className="mx-auto mb-4 text-gray-300" />
+                                        <p>No se pudieron cargar las estadísticas</p>
+                                        <button
+                                            onClick={() => fetchEmailStats(editingClient.id)}
+                                            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                        >
+                                            Reintentar
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Pestaña Respuestas */}
+                        {activeTab === 'responses' && (
+                            <div className="space-y-6">
+                                {/* Header con botón sincronizar */}
+                                <div className="flex items-center justify-between">
+                                    <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                                        <MessageSquare size={20} className="text-blue-600" />
+                                        Respuestas Recibidas
+                                    </h3>
+                                    <button
+                                        onClick={() => handleSyncClientResponses(editingClient.id)}
+                                        disabled={syncingResponses}
+                                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                                    >
+                                        <RefreshCw size={14} className={syncingResponses ? 'animate-spin' : ''} />
+                                        Sincronizar
+                                    </button>
+                                </div>
+
+                                {loadingResponses ? (
+                                    <div className="flex items-center justify-center py-12">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                                        <span className="ml-3 text-gray-600">Cargando respuestas...</span>
+                                    </div>
+                                ) : clientResponses.length === 0 ? (
+                                    <div className="text-center py-12 text-gray-500">
+                                        <Inbox size={48} className="mx-auto mb-4 text-gray-300" />
+                                        <p className="font-medium">No hay respuestas registradas</p>
+                                        <p className="text-sm mt-1">Sincroniza para buscar nuevas respuestas</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {clientResponses.map((response) => (
+                                            <div
+                                                key={response.id}
+                                                className={`border-2 rounded-lg p-4 ${
+                                                    response.isRead
+                                                        ? 'bg-white border-gray-200'
+                                                        : 'bg-blue-50/50 border-blue-200'
+                                                }`}
+                                            >
+                                                <div className="flex items-start justify-between mb-2">
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <Mail
+                                                                size={16}
+                                                                className={response.isRead ? 'text-gray-400' : 'text-blue-600'}
+                                                            />
+                                                            <span className="font-medium text-gray-900 truncate">
+                                                                {response.fromEmail}
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-sm text-gray-700 font-medium truncate">
+                                                            {response.subject}
+                                                        </div>
+                                                        <div className="text-xs text-gray-500 mt-1">
+                                                            {new Date(response.receivedAt).toLocaleString('es-ES', {
+                                                                dateStyle: 'medium',
+                                                                timeStyle: 'short',
+                                                            })}
+                                                            {response.emailSend?.jobOffer && (
+                                                                <span className="ml-2">
+                                                                    | {response.emailSend.jobOffer.empresa}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 ml-4">
+                                                        <ClassificationBadge
+                                                            classification={response.classification}
+                                                            confidence={response.classificationConfidence || undefined}
+                                                            showConfidence={true}
+                                                            size="sm"
+                                                        />
+                                                        <button
+                                                            onClick={() => handleReclassifyResponse(response.id, editingClient.id)}
+                                                            className="p-1.5 text-purple-600 hover:bg-purple-50 rounded transition"
+                                                            title="Reclasificar con IA"
+                                                        >
+                                                            <RotateCcw size={14} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                {response.bodyText && (
+                                                    <div className="mt-2 text-sm text-gray-600 bg-gray-50 rounded p-2 max-h-24 overflow-y-auto whitespace-pre-wrap">
+                                                        {response.bodyText.substring(0, 300)}
+                                                        {response.bodyText.length > 300 && '...'}
+                                                    </div>
+                                                )}
+                                                {response.classificationReasoning && (
+                                                    <div className="mt-2 text-xs text-gray-500 italic">
+                                                        IA: {response.classificationReasoning}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Link a página completa */}
+                                {clientResponses.length > 0 && (
+                                    <div className="text-center pt-4 border-t">
+                                        <a
+                                            href={`/responses?clientId=${editingClient.id}`}
+                                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                        >
+                                            Ver todas las respuestas en página completa →
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         </div>
                         {/* Fin Contenido Scrollable */}
 
@@ -825,9 +1369,11 @@ export default function ClientsPage() {
                 <table className="w-full text-left">
                     <thead className="bg-gray-50 border-b border-gray-200">
                         <tr>
+                            <th className="px-3 py-3 font-medium text-gray-500 text-center w-16">Stats</th>
                             <th className="px-6 py-3 font-medium text-gray-500">Info Cliente</th>
                             <th className="px-6 py-3 font-medium text-gray-500">Estado CRM</th>
                             <th className="px-6 py-3 font-medium text-gray-500">Estado Envío</th>
+                            <th className="px-6 py-3 font-medium text-gray-500">Modo</th>
                             <th className="px-6 py-3 font-medium text-gray-500">Warmup (Act / Obj)</th>
                             <th className="px-6 py-3 font-medium text-gray-500">Acciones</th>
                         </tr>
@@ -835,7 +1381,7 @@ export default function ClientsPage() {
                     <tbody className="divide-y divide-gray-100">
                         {loading ? (
                             <tr>
-                                <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                                <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                                     <div className="flex flex-col items-center gap-2">
                                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                                         <span>Cargando clientes...</span>
@@ -844,7 +1390,7 @@ export default function ClientsPage() {
                             </tr>
                         ) : filteredClients.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                                <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                                     <div className="flex flex-col items-center gap-2">
                                         <Filter size={32} className="text-gray-300" />
                                         <span className="font-medium">No se encontraron clientes</span>
@@ -861,6 +1407,15 @@ export default function ClientsPage() {
                                 const settings = client.sendSettings;
                                 return (
                                     <tr key={client.id} className="hover:bg-gray-50">
+                                        <td className="px-3 py-4 text-center">
+                                            <button
+                                                onClick={() => handleEdit(client, 'stats')}
+                                                className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all hover:shadow-sm border border-transparent hover:border-indigo-200 group"
+                                                title="Ver estadísticas de emails"
+                                            >
+                                                <BarChart3 size={20} className="group-hover:scale-110 transition-transform" />
+                                            </button>
+                                        </td>
                                         <td className="px-6 py-4">
                                             <div className="font-medium text-gray-900">{client.nombre} {client.apellido}</div>
                                             <div className="text-sm text-gray-500">{client.email}</div>
@@ -909,6 +1464,30 @@ export default function ClientsPage() {
                                             </button>
                                         </td>
                                         <td className="px-6 py-4">
+                                            <button
+                                                onClick={() => handleTogglePreviewMode(client.id, settings?.previewEnabled ?? true)}
+                                                className="flex items-center gap-2 cursor-pointer group"
+                                                title={settings?.previewEnabled ? 'Modo Preview activo - Click para cambiar a Automático' : 'Modo Automático activo - Click para cambiar a Preview'}
+                                            >
+                                                {settings?.previewEnabled ? (
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 group-hover:bg-blue-200 transition-colors">
+                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                        </svg>
+                                                        Preview
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200 group-hover:bg-orange-200 transition-colors">
+                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                                        </svg>
+                                                        Auto
+                                                    </span>
+                                                )}
+                                            </button>
+                                        </td>
+                                        <td className="px-6 py-4">
                                             {settings ? (
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-20 h-2.5 bg-gray-200 rounded-full overflow-hidden">
@@ -940,6 +1519,18 @@ export default function ClientsPage() {
                     </tbody>
                 </table>
             </div>
+
+            {/* Confirm Dialog */}
+            <ConfirmDialog
+                open={confirmDialog.open}
+                onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}
+                title={confirmDialog.title}
+                description={confirmDialog.description}
+                onConfirm={confirmDialog.onConfirm}
+                variant={confirmDialog.variant}
+                confirmText="Confirmar"
+                cancelText="Cancelar"
+            />
         </div>
     );
 }

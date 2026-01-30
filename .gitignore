@@ -44,6 +44,7 @@ secrets/
 .Trashes
 ehthumbs.db
 Thumbs.db
+Desktop.ini
 
 # Logs
 logs/
@@ -83,11 +84,13 @@ temp/
 *.tsbuildinfo
 next-env.d.ts
 
-# Claude Code plans (optional - remove if you want to track plans)
-.claude/plans/
-
-# Development/test scripts (optional - remove if needed in repo)
+# Development/test scripts
 insert-test-offer.js
 run-warmup-migration.js
+run-delay-migration.js
 test-matching.js
 update-target-limits.js
+test-port-3000.js
+
+# Windows specific
+nul

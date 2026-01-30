@@ -45,6 +45,10 @@ export class UpdateSettingsDto {
 
   @IsOptional()
   @IsBoolean()
+  previewEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   isWarmupActive?: boolean;
 
   @IsOptional()

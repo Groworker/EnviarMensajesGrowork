@@ -2,10 +2,10 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddWarmupDailyIncrement1738148400000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // 1. Agregar columna warmup_daily_increment
+    // 1. Agregar columna warmup_daily_increment (IF NOT EXISTS)
     await queryRunner.query(`
       ALTER TABLE client_send_settings
-      ADD COLUMN warmup_daily_increment INTEGER NOT NULL DEFAULT 2
+      ADD COLUMN IF NOT EXISTS warmup_daily_increment INTEGER NOT NULL DEFAULT 2
     `);
 
     // 2. Cambiar el default de target_daily_limit a 25

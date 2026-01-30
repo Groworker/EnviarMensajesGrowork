@@ -38,4 +38,9 @@ export const envValidationSchema = Joi.object({
   // Zoho Sync Configuration
   ZOHO_SYNC_BATCH_SIZE: Joi.number().min(1).max(200).default(200),
   ZOHO_SYNC_ENABLED: Joi.string().valid('true', 'false').default('true'),
+
+  // OpenAI Configuration
+  OPENAI_API_KEY: Joi.string().optional(),
+  OPENAI_MODEL: Joi.string().default('gpt-4o-mini'),
+  OPENAI_MAX_TOKENS: Joi.number().min(100).max(4000).default(1000),
 });

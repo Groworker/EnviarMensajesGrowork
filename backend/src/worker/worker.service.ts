@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
@@ -8,8 +9,13 @@ import { EmailSend, EmailSendStatus } from '../entities/email-send.entity';
 import { ClientSendSettings } from '../entities/client-send-settings.entity';
 import { EmailReputation } from '../entities/email-reputation.entity';
 import { Client } from '../entities/client.entity';
+import { GlobalSendConfig } from '../entities/global-send-config.entity';
 
 import { EmailService } from '../email/email.service';
+import { AiService } from '../ai/ai.service';
+import { DriveService } from '../drive/drive.service';
+import { EmailAttachment } from '../drive/interfaces/drive-file.interface';
+import { GlobalConfigService } from '../api/global-config/global-config.service';
 
 @Injectable()
 export class WorkerService {
@@ -28,7 +34,11 @@ export class WorkerService {
     @InjectRepository(EmailReputation)
     private reputationRepository: Repository<EmailReputation>,
     private emailService: EmailService,
-  ) {}
+    private aiService: AiService,
+    private driveService: DriveService,
+    private configService: ConfigService,
+    private globalConfigService: GlobalConfigService,
+  ) { }
 
   // Run frequently to process queue
   @Cron(CronExpression.EVERY_MINUTE)
@@ -63,6 +73,53 @@ export class WorkerService {
     }
   }
 
+  /**
+   * Check if current time is within allowed sending hours
+   */
+  private async isWithinSendingHours(): Promise<boolean> {
+    const config = await this.globalConfigService.getConfig();
+
+    if (!config.enabled) {
+      return true; // If restrictions disabled, always allow
+    }
+
+    const now = new Date();
+    const currentHour = now.getHours();
+
+    // Handle overnight ranges (e.g., 22:00 - 06:00)
+    if (config.endHour < config.startHour) {
+      return currentHour >= config.startHour || currentHour < config.endHour;
+    }
+
+    // Normal range (e.g., 09:00 - 18:00)
+    return currentHour >= config.startHour && currentHour < config.endHour;
+  }
+
+  /**
+   * Get random delay in milliseconds based on config
+   */
+  private async getRandomDelay(): Promise<number> {
+    const config = await this.globalConfigService.getConfig();
+
+    if (!config.enabled) {
+      return 0; // No delay if restrictions disabled
+    }
+
+    // Convert minutes to milliseconds
+    const minMs = config.minDelayMinutes * 60 * 1000;
+    const maxMs = config.maxDelayMinutes * 60 * 1000;
+    const randomMs = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+
+    return randomMs;
+  }
+
+  /**
+   * Sleep for specified milliseconds
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
   private async processJob(job: SendJob) {
     const remaining = job.emailsToSend - job.emailsSentCount;
     if (remaining <= 0) {
@@ -95,11 +152,33 @@ export class WorkerService {
 
     if (candidates.length === 0) {
       this.logger.warn(`No more candidates found for Client ${job.clientId}`);
-      // Only mark done if we really can't find anything, for now just skip
       return;
     }
 
-    for (const offer of candidates) {
+    // Check if we're within sending hours
+    const canSend = await this.isWithinSendingHours();
+    if (!canSend) {
+      const now = new Date();
+      this.logger.log(
+        `⏰ Outside sending hours (current: ${now.getHours()}:${now.getMinutes()}). Skipping job ${job.id}`,
+      );
+      return;
+    }
+
+    for (let i = 0; i < candidates.length; i++) {
+      const offer = candidates[i];
+
+      // Apply delay before sending (except for first email)
+      if (i > 0) {
+        const delayMs = await this.getRandomDelay();
+        if (delayMs > 0) {
+          this.logger.debug(
+            `⏳ Waiting ${(delayMs / 1000).toFixed(1)}s before next email...`,
+          );
+          await this.sleep(delayMs);
+        }
+      }
+
       await this.sendEmailForOffer(job, offer);
     }
   }
@@ -140,18 +219,18 @@ export class WorkerService {
     const paisesInteres = Array.isArray(client.paisesInteres?.values)
       ? client.paisesInteres.values
       : typeof client.paisesInteres?.values === 'string'
-      ? [client.paisesInteres.values]
-      : Array.isArray(client.paisesInteres)
-      ? client.paisesInteres
-      : [];
+        ? [client.paisesInteres.values]
+        : Array.isArray(client.paisesInteres)
+          ? client.paisesInteres
+          : [];
 
     const ciudadesInteres = Array.isArray(client.ciudadesInteres?.values)
       ? client.ciudadesInteres.values
       : typeof client.ciudadesInteres?.values === 'string'
-      ? [client.ciudadesInteres.values]
-      : Array.isArray(client.ciudadesInteres)
-      ? client.ciudadesInteres
-      : [];
+        ? [client.ciudadesInteres.values]
+        : Array.isArray(client.ciudadesInteres)
+          ? client.ciudadesInteres
+          : [];
 
     // 4. Apply matching criteria based on client fields
     const criteria = settings?.matchingCriteria || {};
@@ -249,32 +328,102 @@ export class WorkerService {
         );
       }
 
-      // 4. Generate email subject
-      const subject = `Candidatura para ${offer.puesto} - ${client.nombre} ${client.apellido}`;
+      // 4. Generate email content with AI (or fallback to template)
+      let subject: string;
+      let content: string;
+      let aiGenerated = false;
+      let aiModel: string | null = null;
 
-      // 5. Generate email content
-      const content = this.generateEmailContent(client, offer);
+      try {
+        const aiResult = await this.aiService.generateEmailContent(
+          client,
+          offer,
+        );
+        subject = aiResult.subject;
+        content = aiResult.htmlContent;
+        aiGenerated = true;
+        aiModel = this.configService.get<string>('openai.model') ?? null;
+        this.logger.log(
+          `AI generated email for client ${client.id} to ${offer.email}`,
+        );
+      } catch (aiError) {
+        // Fallback to template if AI fails
+        this.logger.warn(
+          `AI generation failed, using fallback template: ${aiError}`,
+        );
+        subject = `Candidatura para ${offer.puesto} - ${client.nombre} ${client.apellido}`;
+        content = this.generateEmailContent(client, offer);
+      }
 
-      // 6. Send Email
-      const messageId = await this.emailService.sendEmail(
+      // 5. Get attachments from Google Drive (DEFINITIVA folder)
+      let attachments: EmailAttachment[] = [];
+      try {
+        attachments = await this.driveService.getAttachmentsForClient(client);
+        this.logger.log(
+          `Retrieved ${attachments.length} attachments for client ${client.id}`,
+        );
+      } catch (driveError) {
+        this.logger.warn(
+          `Failed to get attachments from Drive, continuing without: ${driveError}`,
+        );
+      }
+
+      // 6. Check if preview is enabled for this client
+      const previewEnabled = job.client.sendSettings?.previewEnabled ?? true;
+
+      if (previewEnabled) {
+        // Save for manual review - don't send yet
+        emailSend.status = EmailSendStatus.PENDING_REVIEW;
+        emailSend.subjectSnapshot = subject;
+        emailSend.content_snapshot = content;
+        emailSend.aiGenerated = aiGenerated;
+        emailSend.aiModel = aiModel;
+        emailSend.attachmentsCount = attachments.length;
+        await this.emailSendRepository.save(emailSend);
+
+        this.logger.log(
+          `Email queued for review: client ${client.id}, offer ${offer.id}`,
+        );
+
+        // Still increment job counter since the email is "processed"
+        await this.sendJobRepository.increment(
+          { id: job.id },
+          'emailsSentCount',
+          1,
+        );
+        return;
+      }
+
+      // 7. Send Email immediately (preview disabled)
+      const sendResult = await this.emailService.sendEmail(
         offer.email,
         subject,
         content,
-        senderEmail, // Impersonated Sender
+        senderEmail,
+        attachments,
       );
 
       this.logger.log(
-        `Email sent from ${senderEmail} to ${offer.email} ID: ${messageId}`,
+        `Email sent from ${senderEmail} to ${offer.email} with ${attachments.length} attachments. ID: ${sendResult.messageId}, ThreadID: ${sendResult.threadId}`,
       );
 
-      // 5. Update Status
+      // 8. Update Status
       emailSend.status = EmailSendStatus.SENT;
-      emailSend.messageId = messageId;
+      emailSend.messageId = sendResult.messageId;
+      emailSend.gmailThreadId = sendResult.threadId;
+      emailSend.subjectSnapshot = subject;
       emailSend.content_snapshot = content;
+      emailSend.aiGenerated = aiGenerated;
+      emailSend.aiModel = aiModel;
+      emailSend.attachmentsCount = attachments.length;
       emailSend.sentAt = new Date();
+
+      // Debug logging
+      this.logger.debug(`About to save email with threadId: ${sendResult.threadId} (type: ${typeof sendResult.threadId})`);
+
       await this.emailSendRepository.save(emailSend);
 
-      // 6. Update Job Counter
+      // 9. Update Job Counter
       await this.sendJobRepository.increment(
         { id: job.id },
         'emailsSentCount',
