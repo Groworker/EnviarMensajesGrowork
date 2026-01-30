@@ -1,3 +1,4 @@
+# Force rebuild: 2026-01-30-v2
 # ============================================
 # STAGE 1: Build Backend (NestJS)
 # ============================================
@@ -18,7 +19,7 @@ COPY backend/ ./
 RUN npm run build
 
 # Verify build output exists
-RUN ls -la dist/ && ls -la dist/main.js
+RUN ls -la dist/src/ && ls -la dist/src/main.js
 
 # ============================================
 # STAGE 2: Build Frontend (Next.js)
