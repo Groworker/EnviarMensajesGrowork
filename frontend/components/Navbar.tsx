@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Settings } from 'lucide-react';
 import { useState } from 'react';
 import GlobalConfigModal from './GlobalConfigModal';
+import Image from 'next/image';
 
 export default function Navbar() {
     const pathname = usePathname();
@@ -26,11 +27,18 @@ export default function Navbar() {
 
     return (
         <>
-            <nav className="bg-white shadow-sm border-b border-gray-200">
+            <nav className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm border-b border-gray-200">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 justify-between">
                         <div className="flex">
-                            <div className="flex flex-shrink-0 items-center">
+                            <div className="flex flex-shrink-0 items-center gap-3">
+                                <Image
+                                    src="/growork-logo-black.png"
+                                    alt="Growork Logo"
+                                    width={40}
+                                    height={40}
+                                    className="object-contain"
+                                />
                                 <span className="text-xl font-bold text-blue-600">CV Sender</span>
                             </div>
                             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">

@@ -103,7 +103,7 @@ export class AiService {
 
       this.logger.log(
         `Email generated successfully for client ${client.id}. ` +
-          `Tokens used: ${completion.usage?.total_tokens || 'unknown'}`,
+        `Tokens used: ${completion.usage?.total_tokens || 'unknown'}`,
       );
 
       return {
@@ -299,7 +299,7 @@ Quedo a su disposición para ampliar cualquier información y participar en el p
 
       this.logger.log(
         `Response classified as "${parsed.classification}" (${Math.round(parsed.confidence * 100)}% confidence). ` +
-          `Tokens: ${completion.usage?.total_tokens || 'unknown'}`,
+        `Tokens: ${completion.usage?.total_tokens || 'unknown'}`,
       );
 
       return parsed;
