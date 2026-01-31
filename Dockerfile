@@ -1,4 +1,4 @@
-# Force rebuild: 2026-01-30-v2
+# Force rebuild: 2026-01-31-v1-no-healthcheck
 # ============================================
 # STAGE 1: Build Backend (NestJS)
 # ============================================
@@ -83,9 +83,8 @@ COPY deploy/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # Expose port (EasyPanel expects 3000)
 EXPOSE 3000
 
-# Health check (check nginx proxy)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1
+# Disable Docker healthcheck - let EasyPanel manage it
+HEALTHCHECK NONE
 
 WORKDIR /app
 
