@@ -94,7 +94,7 @@ export default function ReplyModal({
     editorProps: {
       attributes: {
         class:
-          'prose prose-sm max-w-none min-h-[200px] p-4 focus:outline-none',
+          'prose prose-sm max-w-none min-h-[200px] p-4 focus:outline-none text-gray-800',
       },
     },
   });
@@ -255,18 +255,16 @@ export default function ReplyModal({
           <div className="px-6 py-2 border-b border-gray-200 flex items-center gap-1 flex-wrap">
             <button
               onClick={() => editor.chain().focus().toggleBold().run()}
-              className={`p-2 rounded hover:bg-gray-100 ${
-                editor.isActive('bold') ? 'bg-gray-200' : ''
-              }`}
+              className={`p-2 rounded hover:bg-gray-100 ${editor.isActive('bold') ? 'bg-gray-200' : ''
+                }`}
               title="Negrita"
             >
               <Bold className="w-4 h-4" />
             </button>
             <button
               onClick={() => editor.chain().focus().toggleItalic().run()}
-              className={`p-2 rounded hover:bg-gray-100 ${
-                editor.isActive('italic') ? 'bg-gray-200' : ''
-              }`}
+              className={`p-2 rounded hover:bg-gray-100 ${editor.isActive('italic') ? 'bg-gray-200' : ''
+                }`}
               title="Cursiva"
             >
               <Italic className="w-4 h-4" />
@@ -274,18 +272,16 @@ export default function ReplyModal({
             <div className="w-px h-6 bg-gray-300 mx-1" />
             <button
               onClick={() => editor.chain().focus().toggleBulletList().run()}
-              className={`p-2 rounded hover:bg-gray-100 ${
-                editor.isActive('bulletList') ? 'bg-gray-200' : ''
-              }`}
+              className={`p-2 rounded hover:bg-gray-100 ${editor.isActive('bulletList') ? 'bg-gray-200' : ''
+                }`}
               title="Lista"
             >
               <List className="w-4 h-4" />
             </button>
             <button
               onClick={() => editor.chain().focus().toggleOrderedList().run()}
-              className={`p-2 rounded hover:bg-gray-100 ${
-                editor.isActive('orderedList') ? 'bg-gray-200' : ''
-              }`}
+              className={`p-2 rounded hover:bg-gray-100 ${editor.isActive('orderedList') ? 'bg-gray-200' : ''
+                }`}
               title="Lista numerada"
             >
               <ListOrdered className="w-4 h-4" />
