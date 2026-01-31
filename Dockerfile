@@ -1,4 +1,4 @@
-# Force rebuild: 2026-01-31-v1-no-healthcheck
+# Force rebuild: 2026-01-31-v2-fix-api-url
 # ============================================
 # STAGE 1: Build Backend (NestJS)
 # ============================================
