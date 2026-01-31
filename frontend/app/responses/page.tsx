@@ -19,7 +19,9 @@ import {
   RotateCcw,
   Check,
   Inbox,
+  Reply,
 } from 'lucide-react';
+import ReplyModal from '@/components/ReplyModal';
 import { ClassificationBadge } from '@/components/ClassificationBadge';
 import toast from 'react-hot-toast';
 
@@ -101,6 +103,13 @@ export default function ResponsesPage() {
 
   // Expanded rows
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+
+  // Reply modal
+  const [replyModalOpen, setReplyModalOpen] = useState(false);
+  const [replyTarget, setReplyTarget] = useState<{
+    response: EmailResponse;
+    threadData: { originalEmail: any; responses: EmailResponse[] };
+  } | null>(null);
 
   const fetchResponses = useCallback(async () => {
     try {
@@ -267,6 +276,23 @@ export default function ResponsesPage() {
       }
       return next;
     });
+  };
+
+  const handleOpenReply = async (response: EmailResponse) => {
+    // If we already have thread data for this response, use it
+    if (selectedResponse?.id === response.id && threadData) {
+      setReplyTarget({ response, threadData });
+      setReplyModalOpen(true);
+    } else {
+      // Load thread data first
+      try {
+        const res = await api.get(`/email-responses/${response.id}/thread`);
+        setReplyTarget({ response, threadData: res.data });
+        setReplyModalOpen(true);
+      } catch (error) {
+        toast.error('Error al cargar la conversación');
+      }
+    }
   };
 
   const filteredResponses = responses.filter((r) => {
@@ -577,6 +603,13 @@ export default function ResponsesPage() {
                     <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
                         <button
+                          onClick={() => handleOpenReply(response)}
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
+                          title="Responder"
+                        >
+                          <Reply size={18} />
+                        </button>
+                        <button
                           onClick={() => handleViewThread(response)}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                           title="Ver conversación"
@@ -833,6 +866,19 @@ export default function ResponsesPage() {
               </div>
               <div className="flex gap-3">
                 <button
+                  onClick={() => {
+                    if (threadData) {
+                      setReplyTarget({ response: selectedResponse, threadData });
+                      setReplyModalOpen(true);
+                      setSelectedResponse(null);
+                    }
+                  }}
+                  className="px-4 py-2 text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 font-medium transition flex items-center gap-2"
+                >
+                  <Reply size={16} />
+                  Responder
+                </button>
+                <button
                   onClick={() => handleReclassify(selectedResponse.id)}
                   className="px-4 py-2 text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 font-medium transition flex items-center gap-2"
                 >
@@ -852,6 +898,26 @@ export default function ResponsesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Reply Modal */}
+      {replyModalOpen && replyTarget && (
+        <ReplyModal
+          isOpen={replyModalOpen}
+          onClose={() => {
+            setReplyModalOpen(false);
+            setReplyTarget(null);
+          }}
+          response={replyTarget.response}
+          threadData={replyTarget.threadData}
+          onReplySent={() => {
+            setReplyModalOpen(false);
+            setReplyTarget(null);
+            fetchResponses();
+            fetchStats();
+            toast.success('Respuesta enviada correctamente');
+          }}
+        />
       )}
     </div>
   );

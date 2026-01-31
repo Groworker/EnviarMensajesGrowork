@@ -18,6 +18,7 @@ import {
 } from './email-responses.service';
 import { ResponseClassification } from '../../entities/email-response.entity';
 import { ResponseSyncService } from '../../email/response-sync.service';
+import { SendReplyDto } from './dto/send-reply.dto';
 
 @Controller('api/email-responses')
 export class EmailResponsesController {
@@ -133,6 +134,26 @@ export class EmailResponsesController {
   @Post(':id/reclassify')
   async reclassify(@Param('id', ParseIntPipe) id: number) {
     return this.responsesService.reclassify(id);
+  }
+
+  /**
+   * Generate an AI-powered reply suggestion for a response
+   */
+  @Post(':id/suggest-reply')
+  async suggestReply(@Param('id', ParseIntPipe) id: number) {
+    return this.responsesService.generateReplySuggestion(id);
+  }
+
+  /**
+   * Send a reply to an email response
+   */
+  @Post(':id/send-reply')
+  @HttpCode(HttpStatus.OK)
+  async sendReply(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: SendReplyDto,
+  ) {
+    return this.responsesService.sendReply(id, body.subject, body.htmlContent);
   }
 
   /**

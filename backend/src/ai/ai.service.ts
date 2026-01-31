@@ -13,6 +13,11 @@ import {
   ResponseClassifierContext,
   ClassificationResult,
 } from './prompts/response-classifier.prompt';
+import {
+  REPLY_GENERATOR_SYSTEM_PROMPT,
+  buildReplyGeneratorPrompt,
+  ReplyGeneratorContext,
+} from './prompts/reply-generator.prompt';
 import { Client } from '../entities/client.entity';
 import { JobOffer } from '../entities/job-offer.entity';
 import { ResponseClassification } from '../entities/email-response.entity';
@@ -354,5 +359,89 @@ Quedo a su disposición para ampliar cualquier información y participar en el p
         reasoning: 'Error al parsear respuesta de IA',
       };
     }
+  }
+
+  /**
+   * Generate a reply suggestion for an email response
+   */
+  async generateReply(
+    context: ReplyGeneratorContext,
+  ): Promise<{ subject: string; body: string }> {
+    if (!this.openai) {
+      this.logger.warn('AI not available, using fallback reply template');
+      return this.generateFallbackReply(context);
+    }
+
+    try {
+      const userPrompt = buildReplyGeneratorPrompt(context);
+
+      this.logger.debug(
+        `Generating reply suggestion for classification: ${context.responseClassification}`,
+      );
+
+      const completion = await this.openai.chat.completions.create({
+        model: this.model,
+        messages: [
+          { role: 'system', content: REPLY_GENERATOR_SYSTEM_PROMPT },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: 500,
+        temperature: 0.6,
+        response_format: { type: 'json_object' },
+      });
+
+      const responseText = completion.choices[0]?.message?.content;
+
+      if (!responseText) {
+        throw new Error('Empty response from OpenAI');
+      }
+
+      const parsed = JSON.parse(responseText);
+
+      this.logger.log(
+        `Reply suggestion generated. Tokens: ${completion.usage?.total_tokens || 'unknown'}`,
+      );
+
+      return {
+        subject: parsed.subject || `Re: ${context.originalSubject}`,
+        body: parsed.body || '',
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to generate reply: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      return this.generateFallbackReply(context);
+    }
+  }
+
+  /**
+   * Fallback reply templates when AI is not available
+   */
+  private generateFallbackReply(context: ReplyGeneratorContext): {
+    subject: string;
+    body: string;
+  } {
+    const templates: Record<string, string> = {
+      entrevista:
+        'Muchas gracias por su respuesta y por considerar mi candidatura. Estoy muy interesado/a en la oportunidad y quedo a su completa disposición para coordinar la entrevista en el horario que mejor les convenga.\n\nQuedo atento/a a sus indicaciones.',
+      mas_informacion:
+        'Gracias por su interés en mi perfil. A continuación le proporciono la información solicitada.\n\n[Por favor, añada aquí la información requerida]\n\nQuedo a su disposición para cualquier consulta adicional.',
+      negativa:
+        'Agradezco sinceramente que hayan considerado mi candidatura y se hayan tomado el tiempo de responder.\n\nLes deseo mucho éxito en su búsqueda y quedo a su disposición para futuras oportunidades que puedan surgir.',
+      automatica:
+        'Gracias por su respuesta. Quedo a la espera de sus noticias respecto al estado de mi candidatura.\n\nNo dude en contactarme si necesita información adicional.',
+      contratado:
+        '¡Muchas gracias por esta excelente noticia! Estoy muy emocionado/a por la oportunidad de unirme a su equipo.\n\nPor favor, indíquenme los siguientes pasos a seguir y la documentación necesaria.\n\nQuedo a su disposición.',
+      sin_clasificar:
+        'Gracias por su respuesta. ¿Podría indicarme el estado actual de mi candidatura?\n\nQuedo atento/a a sus comentarios.',
+    };
+
+    const body =
+      templates[context.responseClassification] || templates.sin_clasificar;
+
+    return {
+      subject: `Re: ${context.originalSubject}`,
+      body,
+    };
   }
 }

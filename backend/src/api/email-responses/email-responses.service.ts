@@ -13,6 +13,8 @@ import {
 import { EmailSend } from '../../entities/email-send.entity';
 import { ResponseSyncService } from '../../email/response-sync.service';
 import { AiService } from '../../ai/ai.service';
+import { EmailService } from '../../email/email.service';
+import { ReplyGeneratorContext } from '../../ai/prompts/reply-generator.prompt';
 
 export interface ResponseFilters {
   clientId?: number;
@@ -39,6 +41,7 @@ export class EmailResponsesService {
     private emailSendRepository: Repository<EmailSend>,
     private responseSyncService: ResponseSyncService,
     private aiService: AiService,
+    private emailService: EmailService,
   ) {}
 
   /**
@@ -310,6 +313,156 @@ export class EmailResponsesService {
     const response = await this.findOne(id);
     await this.responseRepository.remove(response);
     this.logger.log(`Response ${id} deleted`);
+  }
+
+  /**
+   * Generate an AI-powered reply suggestion for a response
+   */
+  async generateReplySuggestion(responseId: number): Promise<{
+    suggestedSubject: string;
+    suggestedBody: string;
+    suggestedHtml: string;
+    context: {
+      classification: string;
+      originalSubject: string;
+      recipientEmail: string;
+      clientEmail: string;
+    };
+  }> {
+    const response = await this.findOne(responseId);
+    const { originalEmail } = await this.getThread(responseId);
+
+    const client = originalEmail.client;
+    const jobOffer = originalEmail.jobOffer;
+
+    if (!client) {
+      throw new BadRequestException('No se encontró el cliente asociado');
+    }
+
+    const context: ReplyGeneratorContext = {
+      originalSubject: originalEmail.subjectSnapshot || '',
+      originalRecipient: originalEmail.recipientEmail,
+      originalRecipientName: response.fromName || undefined,
+      responseSubject: response.subject,
+      responseBody: response.bodyText || this.stripHtml(response.bodyHtml || ''),
+      responseClassification: response.classification,
+      clientName: client.nombre || '',
+      clientLastName: client.apellido || '',
+      clientJobTitle: client.jobTitle || undefined,
+      jobPosition: jobOffer?.puesto,
+      jobCompany: jobOffer?.empresa || jobOffer?.hotel,
+      jobCity: jobOffer?.ciudad,
+    };
+
+    const suggestion = await this.aiService.generateReply(context);
+
+    this.logger.log(
+      `Reply suggestion generated for response ${responseId} (classification: ${response.classification})`,
+    );
+
+    return {
+      suggestedSubject: suggestion.subject,
+      suggestedBody: suggestion.body,
+      suggestedHtml: this.convertToSimpleHtml(suggestion.body, client),
+      context: {
+        classification: response.classification,
+        originalSubject: originalEmail.subjectSnapshot || '',
+        recipientEmail: response.fromEmail,
+        clientEmail: client.emailOperativo || client.email || '',
+      },
+    };
+  }
+
+  /**
+   * Send a reply to an email response
+   */
+  async sendReply(
+    responseId: number,
+    subject: string,
+    htmlContent: string,
+  ): Promise<{
+    success: boolean;
+    messageId: string;
+    threadId: string;
+    sentAt: Date;
+  }> {
+    const response = await this.findOne(responseId);
+    const { originalEmail } = await this.getThread(responseId);
+
+    const client = originalEmail.client;
+    if (!client?.emailOperativo) {
+      throw new BadRequestException(
+        'El cliente no tiene un email operativo configurado. Configure el email operativo antes de enviar respuestas.',
+      );
+    }
+
+    this.logger.log(
+      `Sending reply for response ${responseId} from ${client.emailOperativo} to ${response.fromEmail}`,
+    );
+
+    // Send email as reply in the same thread
+    const result = await this.emailService.sendReplyInThread(
+      response.fromEmail, // To: quien envió la respuesta original
+      subject,
+      htmlContent,
+      client.emailOperativo, // From: email del cliente
+      response.gmailThreadId, // Thread ID para mantener conversación
+      response.gmailMessageId, // Message-ID para References header
+    );
+
+    // Mark response as read since we've replied
+    await this.responseRepository.update(responseId, {
+      isRead: true,
+    });
+
+    this.logger.log(
+      `Reply sent successfully. MessageID: ${result.messageId}, ThreadID: ${result.threadId}`,
+    );
+
+    return {
+      success: true,
+      messageId: result.messageId,
+      threadId: result.threadId,
+      sentAt: new Date(),
+    };
+  }
+
+  /**
+   * Convert plain text to simple HTML email format
+   */
+  private convertToSimpleHtml(body: string, client: any): string {
+    const clientName = `${client?.nombre || ''} ${client?.apellido || ''}`.trim();
+    const clientEmail = client?.emailOperativo || client?.email || '';
+    const clientPhone = client?.phone || '';
+
+    const paragraphs = body
+      .split(/\n\n+/)
+      .filter((p) => p.trim())
+      .map(
+        (p) =>
+          `<p style="margin: 0 0 16px 0; line-height: 1.6;">${p.replace(/\n/g, '<br>')}</p>`,
+      )
+      .join('');
+
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.6; color: #333333;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+    ${paragraphs}
+
+    <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #eeeeee;">
+      <p style="margin: 0 0 4px 0; font-weight: bold; color: #333333;">${clientName}</p>
+      ${clientEmail ? `<p style="margin: 0 0 4px 0; color: #666666;">${clientEmail}</p>` : ''}
+      ${clientPhone ? `<p style="margin: 0; color: #666666;">${clientPhone}</p>` : ''}
+    </div>
+  </div>
+</body>
+</html>`.trim();
   }
 
   /**

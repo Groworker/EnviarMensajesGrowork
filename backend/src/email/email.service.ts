@@ -103,4 +103,88 @@ export class EmailService {
       throw error;
     }
   }
+
+  /**
+   * Send an email reply within an existing thread
+   * This maintains the conversation in Gmail by using proper headers and threadId
+   */
+  async sendReplyInThread(
+    to: string,
+    subject: string,
+    htmlContent: string,
+    fromEmail: string,
+    threadId: string,
+    inReplyToMessageId: string,
+  ): Promise<EmailSendResult> {
+    try {
+      // Create JWT Client with Domain-Wide Delegation
+      const auth = createGoogleAuth({
+        scopes: ['https://www.googleapis.com/auth/gmail.send'],
+        subject: fromEmail,
+      });
+
+      const gmail = google.gmail({ version: 'v1', auth: auth as any });
+
+      // Build MIME message with proper headers for threading
+      const transporter = nodemailer.createTransport({
+        streamTransport: true,
+        newline: 'unix',
+        buffer: true,
+      });
+
+      // Ensure subject starts with "Re:" if it doesn't already
+      const replySubject = subject.startsWith('Re:') ? subject : `Re: ${subject}`;
+
+      const sentInfo = await transporter.sendMail({
+        to,
+        from: fromEmail,
+        subject: replySubject,
+        html: htmlContent,
+        headers: {
+          'In-Reply-To': `<${inReplyToMessageId}>`,
+          References: `<${inReplyToMessageId}>`,
+        },
+      });
+
+      const bufferMessage = sentInfo.message as Buffer;
+
+      const rawMessage = bufferMessage
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+
+      // Send via Gmail API with threadId to keep in same conversation
+      const res = await gmail.users.messages.send({
+        userId: 'me',
+        requestBody: {
+          raw: rawMessage,
+          threadId: threadId, // Critical: keeps the reply in the same thread
+        },
+      });
+
+      this.logger.log(
+        `Reply sent in thread ${threadId} from ${fromEmail} to ${to}. MessageID: ${res.data.id}`,
+      );
+
+      if (!res.data.id || !res.data.threadId) {
+        throw new Error('Reply sent but no ID or ThreadID returned from Gmail API');
+      }
+
+      return {
+        messageId: res.data.id,
+        threadId: res.data.threadId,
+      };
+    } catch (error) {
+      if (error instanceof Error) {
+        this.logger.error(
+          `Failed to send reply from ${fromEmail}: ${error.message}`,
+          error.stack,
+        );
+      } else {
+        this.logger.error(`Failed to send reply from ${fromEmail}:`, error);
+      }
+      throw error;
+    }
+  }
 }
