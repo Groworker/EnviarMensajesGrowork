@@ -110,6 +110,12 @@ export class Client {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
+  @Column({ name: 'deleted_at', type: 'timestamp', nullable: true })
+  deletedAt: Date | null;
+
+  @Column({ name: 'deletion_reason', type: 'text', nullable: true })
+  deletionReason: string | null;
+
   // Relation to Send Settings (One-to-One)
   @OneToOne(() => ClientSendSettings, (settings) => settings.client)
   sendSettings: ClientSendSettings;

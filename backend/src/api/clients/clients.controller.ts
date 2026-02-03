@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Post,
   Put,
+  Delete,
   HttpCode,
   HttpStatus,
   NotFoundException,
@@ -17,13 +18,14 @@ import {
   UpdateClientDto,
   UpdateSettingsDto,
   UpdateEstadoDto,
+  DeleteClientDto,
 } from './dto';
 import { Client } from '../../entities/client.entity';
 import { ClientSendSettings } from '../../entities/client-send-settings.entity';
 
 @Controller('api/clients')
 export class ClientsController {
-  constructor(private readonly clientsService: ClientsService) {}
+  constructor(private readonly clientsService: ClientsService) { }
 
   @Get()
   async findAll(): Promise<Client[]> {
@@ -107,5 +109,32 @@ export class ClientsController {
     @Body() body: { enabled: boolean },
   ): Promise<{ updated: number }> {
     return this.clientsService.setPreviewModeAll(body.enabled);
+  }
+
+  /**
+   * Check if a client can be deleted
+   */
+  @Get(':id/deletion-check')
+  async checkDeletion(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<{
+    canDelete: boolean;
+    reasons: string[];
+    warnings: string[];
+    clientInfo: any;
+  }> {
+    return this.clientsService.checkDeletionEligibility(id);
+  }
+
+  /**
+   * Delete a client and their Google Workspace account
+   */
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  async deleteClient(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() deleteDto: DeleteClientDto,
+  ): Promise<{ success: boolean; message: string; deletedClient: any }> {
+    return this.clientsService.deleteClient(id, deleteDto);
   }
 }

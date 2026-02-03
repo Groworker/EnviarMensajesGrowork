@@ -2,19 +2,20 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
-import { Search, Settings, Save, X, Info, AlertCircle, MapPin, Briefcase, Filter, BarChart3, Mail, CheckCircle, XCircle, Clock, AlertTriangle, MessageSquare, RefreshCw, RotateCcw, Inbox } from 'lucide-react';
+import { Search, Settings, Save, X, Info, AlertCircle, MapPin, Briefcase, Filter, BarChart3, Mail, CheckCircle, XCircle, Clock, AlertTriangle, MessageSquare, RefreshCw, RotateCcw, Inbox, Trash2 } from 'lucide-react';
 import { MultiSelectInput } from '@/components/MultiSelectInput';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ClassificationBadge } from '@/components/ClassificationBadge';
+import { DeleteClientModal } from '@/components/DeleteClientModal';
 import toast from 'react-hot-toast';
 
 type Classification =
-  | 'negativa'
-  | 'automatica'
-  | 'entrevista'
-  | 'mas_informacion'
-  | 'contratado'
-  | 'sin_clasificar';
+    | 'negativa'
+    | 'automatica'
+    | 'entrevista'
+    | 'mas_informacion'
+    | 'contratado'
+    | 'sin_clasificar';
 
 interface ClientResponse {
     id: number;
@@ -60,6 +61,11 @@ export default function ClientsPage() {
     const [loadingResponses, setLoadingResponses] = useState(false);
     const [syncingResponses, setSyncingResponses] = useState(false);
 
+    // Delete modal state
+    const [deletingClient, setDeletingClient] = useState<any | null>(null);
+    const [deletionEligibility, setDeletionEligibility] = useState<any | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
     // Confirm dialog state
     const [confirmDialog, setConfirmDialog] = useState<{
         open: boolean;
@@ -71,7 +77,7 @@ export default function ClientsPage() {
         open: false,
         title: '',
         description: '',
-        onConfirm: () => {},
+        onConfirm: () => { },
         variant: 'info',
     });
 
@@ -168,17 +174,17 @@ export default function ClientsPage() {
             paisesInteres: Array.isArray(client.paisesInteres?.values)
                 ? client.paisesInteres.values
                 : typeof client.paisesInteres?.values === 'string'
-                ? [client.paisesInteres.values]
-                : Array.isArray(client.paisesInteres)
-                ? client.paisesInteres
-                : [],
+                    ? [client.paisesInteres.values]
+                    : Array.isArray(client.paisesInteres)
+                        ? client.paisesInteres
+                        : [],
             ciudadesInteres: Array.isArray(client.ciudadesInteres?.values)
                 ? client.ciudadesInteres.values
                 : typeof client.ciudadesInteres?.values === 'string'
-                ? [client.ciudadesInteres.values]
-                : Array.isArray(client.ciudadesInteres)
-                ? client.ciudadesInteres
-                : [],
+                    ? [client.ciudadesInteres.values]
+                    : Array.isArray(client.ciudadesInteres)
+                        ? client.ciudadesInteres
+                        : [],
         };
 
         setEditingClient(normalizedClient);
@@ -472,255 +478,293 @@ export default function ClientsPage() {
         }
     };
 
-    const filteredClients = clients.filter(c => {
-        // Text search filter
-        const matchesSearch = searchTerm === '' ||
-            c.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            c.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            c.zohoId?.includes(searchTerm);
+    const handleCheckDeletion = async (client: any) => {
+        const loadingToast = toast.loading('Verificando elegibilidad...');
+        try {
+            const res = await api.get(`/clients/${client.id}/deletion-check`);
+            setDeletionEligibility(res.data);
+            setDeletingClient(client);
+            toast.dismiss(loadingToast);
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Error al verificar elegibilidad', { id: loadingToast });
+        }
+    };
 
-        // Estado CRM filter
-        const matchesEstadoCrm = estadoCrmFilter === '' || c.estado === estadoCrmFilter;
+    const handleDeleteClient = async (reason: string) => {
+        if (!deletingClient) return;
 
-        // Estado Envío filter
-        const matchesEstadoEnvio = estadoEnvioFilter === '' ||
-            (estadoEnvioFilter === 'activo' && c.sendSettings?.active) ||
-            (estadoEnvioFilter === 'inactivo' && !c.sendSettings?.active);
+        setIsDeleting(true);
+        const loadingToast = toast.loading(`Eliminando cliente ${deletingClient.nombre}...`);
 
-        // Warmup filter
-        let matchesWarmup = true;
-        if (warmupFilter !== '') {
-            const settings = c.sendSettings;
-            if (!settings) {
-                matchesWarmup = warmupFilter === 'sin_config';
-            } else {
-                const progress = (settings.currentDailyLimit / settings.targetDailyLimit) * 100;
-                if (warmupFilter === 'completado') {
-                    matchesWarmup = progress >= 100;
-                } else if (warmupFilter === 'en_progreso') {
-                    matchesWarmup = progress > 0 && progress < 100;
-                } else if (warmupFilter === 'sin_config') {
-                    matchesWarmup = false;
-                }
+        try {
+            const res = await api.delete(`/clients/${deletingClient.id}`, {
+                data: {
+                    confirmed: true,
+                    reason: reason || undefined,
+                },
+            });
+
+            toast.success(res.data.message, { id: loadingToast, duration: 5000 });
+
+            // Close modal and reset state
+            setDeletingClient(null);
+            setDeletionEligibility(null);
+            setIsDeleting(false);
+
+            // Refresh clients list
+            fetchClients();
+        } catch (error: any) {
+            setIsDeleting(false);
+            toast.error(error.response?.data?.message || 'Error al eliminar cliente', { id: loadingToast });
+        }
+    }
+};
+
+const filteredClients = clients.filter(c => {
+    // Text search filter
+    const matchesSearch = searchTerm === '' ||
+        c.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.zohoId?.includes(searchTerm);
+
+    // Estado CRM filter
+    const matchesEstadoCrm = estadoCrmFilter === '' || c.estado === estadoCrmFilter;
+
+    // Estado Envío filter
+    const matchesEstadoEnvio = estadoEnvioFilter === '' ||
+        (estadoEnvioFilter === 'activo' && c.sendSettings?.active) ||
+        (estadoEnvioFilter === 'inactivo' && !c.sendSettings?.active);
+
+    // Warmup filter
+    let matchesWarmup = true;
+    if (warmupFilter !== '') {
+        const settings = c.sendSettings;
+        if (!settings) {
+            matchesWarmup = warmupFilter === 'sin_config';
+        } else {
+            const progress = (settings.currentDailyLimit / settings.targetDailyLimit) * 100;
+            if (warmupFilter === 'completado') {
+                matchesWarmup = progress >= 100;
+            } else if (warmupFilter === 'en_progreso') {
+                matchesWarmup = progress > 0 && progress < 100;
+            } else if (warmupFilter === 'sin_config') {
+                matchesWarmup = false;
             }
         }
+    }
 
-        return matchesSearch && matchesEstadoCrm && matchesEstadoEnvio && matchesWarmup;
-    });
+    return matchesSearch && matchesEstadoCrm && matchesEstadoEnvio && matchesWarmup;
+});
 
-    return (
-        <div className="bg-gray-50 min-h-screen p-8">
-            <header className="mb-6">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-3xl font-bold text-gray-900">Gestión de Clientes</h1>
-                    <div className="relative">
-                        <input
-                            type="text"
-                            placeholder="Buscar cliente..."
-                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                        <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-                    </div>
-                </div>
-                <div className="mt-4 flex flex-wrap gap-3">
-                    {/* Estado Envío buttons */}
-                    <button
-                        onClick={handleActivateAll}
-                        className="inline-flex items-center gap-2 px-4 py-2 border border-green-300 bg-green-50 text-green-700 text-sm font-medium rounded-lg hover:bg-green-100 transition-colors"
-                    >
-                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                        Activar Envío (Todos)
-                    </button>
-                    <button
-                        onClick={handleDeactivateAll}
-                        className="inline-flex items-center gap-2 px-4 py-2 border border-yellow-300 bg-yellow-50 text-yellow-700 text-sm font-medium rounded-lg hover:bg-yellow-100 transition-colors"
-                    >
-                        <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
-                        Pausar Envío (Todos)
-                    </button>
-
-                    {/* Separador */}
-                    <div className="w-px h-8 bg-gray-300 self-center"></div>
-
-                    {/* Modo Preview buttons */}
-                    <button
-                        onClick={() => handleSetPreviewModeAll(true)}
-                        className="inline-flex items-center gap-2 px-4 py-2 border border-blue-300 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        Modo Preview (Todos)
-                    </button>
-                    <button
-                        onClick={() => handleSetPreviewModeAll(false)}
-                        className="inline-flex items-center gap-2 px-4 py-2 border border-orange-300 bg-orange-50 text-orange-700 text-sm font-medium rounded-lg hover:bg-orange-100 transition-colors"
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                        Envío Automático (Todos)
-                    </button>
-                </div>
-            </header>
-
-            {/* Filters Bar */}
-            <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                <div className="flex flex-wrap items-center gap-4">
-                    <span className="text-sm font-medium text-gray-600 flex items-center gap-1">
-                        <Filter size={14} />
-                        Filtros:
-                    </span>
-
-                    {/* Estado CRM Filter */}
-                    <div className="flex items-center gap-2">
-                        <label className="text-sm font-medium text-gray-700">Estado CRM:</label>
-                        <select
-                            value={estadoCrmFilter}
-                            onChange={(e) => setEstadoCrmFilter(e.target.value)}
-                            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
-                        >
-                            <option value="">Todos</option>
-                            <option value="Envío activo">Envío activo</option>
-                            <option value="Entrevista">Entrevista</option>
-                            <option value="Contratado">Contratado</option>
-                            <option value="Cerrado">Cerrado</option>
-                            <option value="Pausado">Pausado</option>
-                        </select>
-                    </div>
-
-                    {/* Estado Envío Filter */}
-                    <div className="flex items-center gap-2">
-                        <label className="text-sm font-medium text-gray-700">Estado Envío:</label>
-                        <select
-                            value={estadoEnvioFilter}
-                            onChange={(e) => setEstadoEnvioFilter(e.target.value)}
-                            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
-                        >
-                            <option value="">Todos</option>
-                            <option value="activo">Activo</option>
-                            <option value="inactivo">Inactivo</option>
-                        </select>
-                    </div>
-
-                    {/* Warmup Filter */}
-                    <div className="flex items-center gap-2">
-                        <label className="text-sm font-medium text-gray-700">Warmup:</label>
-                        <select
-                            value={warmupFilter}
-                            onChange={(e) => setWarmupFilter(e.target.value)}
-                            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
-                        >
-                            <option value="">Todos</option>
-                            <option value="en_progreso">En progreso</option>
-                            <option value="completado">Completado</option>
-                            <option value="sin_config">Sin configurar</option>
-                        </select>
-                    </div>
-
-                    {/* Clear Filters Button */}
-                    {(estadoCrmFilter || estadoEnvioFilter || warmupFilter) && (
-                        <button
-                            onClick={() => {
-                                setEstadoCrmFilter('');
-                                setEstadoEnvioFilter('');
-                                setWarmupFilter('');
-                            }}
-                            className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition flex items-center gap-1"
-                        >
-                            <X size={14} />
-                            Limpiar filtros
-                        </button>
-                    )}
-
-                    {/* Results count */}
-                    <span className="ml-auto text-sm text-gray-500">
-                        {filteredClients.length} de {clients.length} clientes
-                    </span>
+return (
+    <div className="bg-gray-50 min-h-screen p-8">
+        <header className="mb-6">
+            <div className="flex items-center justify-between">
+                <h1 className="text-3xl font-bold text-gray-900">Gestión de Clientes</h1>
+                <div className="relative">
+                    <input
+                        type="text"
+                        placeholder="Buscar cliente..."
+                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
                 </div>
             </div>
+            <div className="mt-4 flex flex-wrap gap-3">
+                {/* Estado Envío buttons */}
+                <button
+                    onClick={handleActivateAll}
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-green-300 bg-green-50 text-green-700 text-sm font-medium rounded-lg hover:bg-green-100 transition-colors"
+                >
+                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                    Activar Envío (Todos)
+                </button>
+                <button
+                    onClick={handleDeactivateAll}
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-yellow-300 bg-yellow-50 text-yellow-700 text-sm font-medium rounded-lg hover:bg-yellow-100 transition-colors"
+                >
+                    <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
+                    Pausar Envío (Todos)
+                </button>
 
-            {editingClient && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-                        {/* Header Fijo */}
-                        <div className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-xl">
-                            <div className="flex justify-between items-center">
-                                <div>
-                                    <p className="text-blue-100 text-sm font-medium">Configuración de cliente</p>
-                                    <h2 className="text-2xl font-bold text-white">{editingClient.nombre} {editingClient.apellido}</h2>
-                                    <p className="text-blue-200 text-sm mt-1">{editingClient.email}</p>
-                                </div>
-                                <button
-                                    onClick={() => setEditingClient(null)}
-                                    className="text-white/80 hover:text-white hover:bg-white/20 p-2 rounded-lg transition-all"
-                                >
-                                    <X size={24} />
-                                </button>
+                {/* Separador */}
+                <div className="w-px h-8 bg-gray-300 self-center"></div>
+
+                {/* Modo Preview buttons */}
+                <button
+                    onClick={() => handleSetPreviewModeAll(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-blue-300 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
+                >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    Modo Preview (Todos)
+                </button>
+                <button
+                    onClick={() => handleSetPreviewModeAll(false)}
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-orange-300 bg-orange-50 text-orange-700 text-sm font-medium rounded-lg hover:bg-orange-100 transition-colors"
+                >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Envío Automático (Todos)
+                </button>
+            </div>
+        </header>
+
+        {/* Filters Bar */}
+        <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div className="flex flex-wrap items-center gap-4">
+                <span className="text-sm font-medium text-gray-600 flex items-center gap-1">
+                    <Filter size={14} />
+                    Filtros:
+                </span>
+
+                {/* Estado CRM Filter */}
+                <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700">Estado CRM:</label>
+                    <select
+                        value={estadoCrmFilter}
+                        onChange={(e) => setEstadoCrmFilter(e.target.value)}
+                        className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+                    >
+                        <option value="">Todos</option>
+                        <option value="Envío activo">Envío activo</option>
+                        <option value="Entrevista">Entrevista</option>
+                        <option value="Contratado">Contratado</option>
+                        <option value="Cerrado">Cerrado</option>
+                        <option value="Pausado">Pausado</option>
+                    </select>
+                </div>
+
+                {/* Estado Envío Filter */}
+                <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700">Estado Envío:</label>
+                    <select
+                        value={estadoEnvioFilter}
+                        onChange={(e) => setEstadoEnvioFilter(e.target.value)}
+                        className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+                    >
+                        <option value="">Todos</option>
+                        <option value="activo">Activo</option>
+                        <option value="inactivo">Inactivo</option>
+                    </select>
+                </div>
+
+                {/* Warmup Filter */}
+                <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700">Warmup:</label>
+                    <select
+                        value={warmupFilter}
+                        onChange={(e) => setWarmupFilter(e.target.value)}
+                        className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+                    >
+                        <option value="">Todos</option>
+                        <option value="en_progreso">En progreso</option>
+                        <option value="completado">Completado</option>
+                        <option value="sin_config">Sin configurar</option>
+                    </select>
+                </div>
+
+                {/* Clear Filters Button */}
+                {(estadoCrmFilter || estadoEnvioFilter || warmupFilter) && (
+                    <button
+                        onClick={() => {
+                            setEstadoCrmFilter('');
+                            setEstadoEnvioFilter('');
+                            setWarmupFilter('');
+                        }}
+                        className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition flex items-center gap-1"
+                    >
+                        <X size={14} />
+                        Limpiar filtros
+                    </button>
+                )}
+
+                {/* Results count */}
+                <span className="ml-auto text-sm text-gray-500">
+                    {filteredClients.length} de {clients.length} clientes
+                </span>
+            </div>
+        </div>
+
+        {editingClient && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+                    {/* Header Fijo */}
+                    <div className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-xl">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <p className="text-blue-100 text-sm font-medium">Configuración de cliente</p>
+                                <h2 className="text-2xl font-bold text-white">{editingClient.nombre} {editingClient.apellido}</h2>
+                                <p className="text-blue-200 text-sm mt-1">{editingClient.email}</p>
                             </div>
-                        </div>
-
-                        {/* Navegación por pestañas */}
-                        <div className="flex-shrink-0 flex border-b bg-gray-50 px-6">
                             <button
-                                className={`px-5 py-3 font-medium transition-colors ${
-                                    activeTab === 'warmup'
-                                        ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
-                                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                                }`}
-                                onClick={() => setActiveTab('warmup')}
+                                onClick={() => setEditingClient(null)}
+                                className="text-white/80 hover:text-white hover:bg-white/20 p-2 rounded-lg transition-all"
                             >
-                                Límites y Warmup
-                            </button>
-                            <button
-                                className={`px-5 py-3 font-medium transition-colors ${
-                                    activeTab === 'criteria'
-                                        ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
-                                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                                }`}
-                                onClick={() => setActiveTab('criteria')}
-                            >
-                                Criterios de Búsqueda
-                            </button>
-                            <button
-                                className={`px-5 py-3 font-medium transition-colors flex items-center gap-2 ${
-                                    activeTab === 'stats'
-                                        ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
-                                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                                }`}
-                                onClick={() => {
-                                    setActiveTab('stats');
-                                    if (editingClient && !emailStats) {
-                                        fetchEmailStats(editingClient.id);
-                                    }
-                                }}
-                            >
-                                <BarChart3 size={16} />
-                                Estadísticas
-                            </button>
-                            <button
-                                className={`px-5 py-3 font-medium transition-colors flex items-center gap-2 ${
-                                    activeTab === 'responses'
-                                        ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
-                                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                                }`}
-                                onClick={() => {
-                                    setActiveTab('responses');
-                                    if (editingClient && clientResponses.length === 0) {
-                                        fetchClientResponses(editingClient.id);
-                                    }
-                                }}
-                            >
-                                <MessageSquare size={16} />
-                                Respuestas
+                                <X size={24} />
                             </button>
                         </div>
+                    </div>
 
-                        {/* Contenido Scrollable */}
-                        <div className="flex-1 overflow-y-auto p-6">
+                    {/* Navegación por pestañas */}
+                    <div className="flex-shrink-0 flex border-b bg-gray-50 px-6">
+                        <button
+                            className={`px-5 py-3 font-medium transition-colors ${activeTab === 'warmup'
+                                ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
+                                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                                }`}
+                            onClick={() => setActiveTab('warmup')}
+                        >
+                            Límites y Warmup
+                        </button>
+                        <button
+                            className={`px-5 py-3 font-medium transition-colors ${activeTab === 'criteria'
+                                ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
+                                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                                }`}
+                            onClick={() => setActiveTab('criteria')}
+                        >
+                            Criterios de Búsqueda
+                        </button>
+                        <button
+                            className={`px-5 py-3 font-medium transition-colors flex items-center gap-2 ${activeTab === 'stats'
+                                ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
+                                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                                }`}
+                            onClick={() => {
+                                setActiveTab('stats');
+                                if (editingClient && !emailStats) {
+                                    fetchEmailStats(editingClient.id);
+                                }
+                            }}
+                        >
+                            <BarChart3 size={16} />
+                            Estadísticas
+                        </button>
+                        <button
+                            className={`px-5 py-3 font-medium transition-colors flex items-center gap-2 ${activeTab === 'responses'
+                                ? 'border-b-2 border-blue-600 text-blue-600 bg-white'
+                                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                                }`}
+                            onClick={() => {
+                                setActiveTab('responses');
+                                if (editingClient && clientResponses.length === 0) {
+                                    fetchClientResponses(editingClient.id);
+                                }
+                            }}
+                        >
+                            <MessageSquare size={16} />
+                            Respuestas
+                        </button>
+                    </div>
+
+                    {/* Contenido Scrollable */}
+                    <div className="flex-1 overflow-y-auto p-6">
 
                         {/* Pestaña Warmup */}
                         {activeTab === 'warmup' && (
@@ -732,11 +776,10 @@ export default function ClientsPage() {
                                             <Settings size={20} className="text-green-600" />
                                             Estado de Envío
                                         </h3>
-                                        <span className={`text-xs font-semibold px-3 py-1.5 rounded-full ${
-                                            editingClient.sendSettings.active
-                                                ? 'bg-green-200 text-green-800'
-                                                : 'bg-red-200 text-red-800'
-                                        }`}>
+                                        <span className={`text-xs font-semibold px-3 py-1.5 rounded-full ${editingClient.sendSettings.active
+                                            ? 'bg-green-200 text-green-800'
+                                            : 'bg-red-200 text-red-800'
+                                            }`}>
                                             {editingClient.sendSettings.active ? '✓ Activo' : '✗ Inactivo'}
                                         </span>
                                     </div>
@@ -758,7 +801,7 @@ export default function ClientsPage() {
                                         </select>
                                         <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
                                             <p className="text-xs text-green-900 leading-relaxed">
-                                                <strong className="text-green-900">Activo:</strong> El sistema enviará emails automáticamente según el schedule<br/>
+                                                <strong className="text-green-900">Activo:</strong> El sistema enviará emails automáticamente según el schedule<br />
                                                 <strong className="text-green-900">Inactivo:</strong> No se enviarán emails hasta reactivar
                                             </p>
                                         </div>
@@ -925,7 +968,7 @@ export default function ClientsPage() {
                                             <div className="min-h-[42px] p-2 bg-white rounded-lg border-2 border-blue-200">
                                                 <MultiSelectInput
                                                     values={editingClient.paisesInteres || []}
-                                                    onChange={() => {}}
+                                                    onChange={() => { }}
                                                     disabled={true}
                                                 />
                                                 {(!editingClient.paisesInteres || editingClient.paisesInteres.length === 0) && (
@@ -942,7 +985,7 @@ export default function ClientsPage() {
                                             <div className="min-h-[42px] p-2 bg-white rounded-lg border-2 border-blue-200">
                                                 <MultiSelectInput
                                                     values={editingClient.ciudadesInteres || []}
-                                                    onChange={() => {}}
+                                                    onChange={() => { }}
                                                     disabled={true}
                                                 />
                                                 {(!editingClient.ciudadesInteres || editingClient.ciudadesInteres.length === 0) && (
@@ -1018,8 +1061,8 @@ export default function ClientsPage() {
                                                         />
                                                         <span className="text-sm text-gray-800 font-medium">
                                                             {filter === 'countries' ? '📍 Países' :
-                                                             filter === 'cities' ? '🏙️ Ciudades' :
-                                                             '💼 Puesto de Trabajo'}
+                                                                filter === 'cities' ? '🏙️ Ciudades' :
+                                                                    '💼 Puesto de Trabajo'}
                                                         </span>
                                                     </label>
                                                 );
@@ -1064,7 +1107,7 @@ export default function ClientsPage() {
                                         </select>
                                         <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
                                             <p className="text-xs text-gray-700 leading-relaxed">
-                                                <strong className="text-gray-900">AND:</strong> La oferta debe cumplir <strong>TODOS</strong> los criterios configurados<br/>
+                                                <strong className="text-gray-900">AND:</strong> La oferta debe cumplir <strong>TODOS</strong> los criterios configurados<br />
                                                 <strong className="text-gray-900">OR:</strong> Basta con que cumpla <strong>UNO</strong> de los criterios
                                             </p>
                                         </div>
@@ -1099,8 +1142,8 @@ export default function ClientsPage() {
                                                 </select>
                                                 <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
                                                     <p className="text-xs text-gray-700 leading-relaxed">
-                                                        <strong className="text-gray-900">Contiene:</strong> Busca ofertas que contengan el puesto<br/>
-                                                        <span className="text-gray-600 italic">Ej: "Chef" encuentra "Chef de Cocina", "Sous Chef"</span><br/>
+                                                        <strong className="text-gray-900">Contiene:</strong> Busca ofertas que contengan el puesto<br />
+                                                        <span className="text-gray-600 italic">Ej: "Chef" encuentra "Chef de Cocina", "Sous Chef"</span><br />
                                                         <strong className="text-gray-900 mt-1 inline-block">Exacto:</strong> Solo ofertas con el mismo puesto exacto
                                                     </p>
                                                 </div>
@@ -1264,11 +1307,10 @@ export default function ClientsPage() {
                                         {clientResponses.map((response) => (
                                             <div
                                                 key={response.id}
-                                                className={`border-2 rounded-lg p-4 ${
-                                                    response.isRead
-                                                        ? 'bg-white border-gray-200'
-                                                        : 'bg-blue-50/50 border-blue-200'
-                                                }`}
+                                                className={`border-2 rounded-lg p-4 ${response.isRead
+                                                    ? 'bg-white border-gray-200'
+                                                    : 'bg-blue-50/50 border-blue-200'
+                                                    }`}
                                             >
                                                 <div className="flex items-start justify-between mb-2">
                                                     <div className="flex-1 min-w-0">
@@ -1342,195 +1384,216 @@ export default function ClientsPage() {
                             </div>
                         )}
 
-                        </div>
-                        {/* Fin Contenido Scrollable */}
+                    </div>
+                    {/* Fin Contenido Scrollable */}
 
-                        {/* Footer Fijo con Botones */}
-                        <div className="flex-shrink-0 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex justify-end gap-3">
-                            <button
-                                onClick={() => setEditingClient(null)}
-                                className="px-5 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 font-medium transition-colors"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleSave}
-                                className="px-5 py-2.5 text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2 transition-colors shadow-sm"
-                            >
-                                <Save size={18} />
-                                Guardar Cambios
-                            </button>
-                        </div>
+                    {/* Footer Fijo con Botones */}
+                    <div className="flex-shrink-0 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex justify-end gap-3">
+                        <button
+                            onClick={() => setEditingClient(null)}
+                            className="px-5 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 font-medium transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={handleSave}
+                            className="px-5 py-2.5 text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2 transition-colors shadow-sm"
+                        >
+                            <Save size={18} />
+                            Guardar Cambios
+                        </button>
                     </div>
                 </div>
-            )}
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <table className="w-full text-left">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                        <tr>
-                            <th className="px-3 py-3 font-medium text-gray-500 text-center w-16">Stats</th>
-                            <th className="px-6 py-3 font-medium text-gray-500">Info Cliente</th>
-                            <th className="px-6 py-3 font-medium text-gray-500">Estado CRM</th>
-                            <th className="px-6 py-3 font-medium text-gray-500">Estado Envío</th>
-                            <th className="px-6 py-3 font-medium text-gray-500">Modo</th>
-                            <th className="px-6 py-3 font-medium text-gray-500">Warmup (Act / Obj)</th>
-                            <th className="px-6 py-3 font-medium text-gray-500">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {loading ? (
-                            <tr>
-                                <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                                    <div className="flex flex-col items-center gap-2">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                                        <span>Cargando clientes...</span>
-                                    </div>
-                                </td>
-                            </tr>
-                        ) : filteredClients.length === 0 ? (
-                            <tr>
-                                <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                                    <div className="flex flex-col items-center gap-2">
-                                        <Filter size={32} className="text-gray-300" />
-                                        <span className="font-medium">No se encontraron clientes</span>
-                                        <span className="text-sm">
-                                            {(searchTerm || estadoCrmFilter || estadoEnvioFilter || warmupFilter)
-                                                ? 'Intenta ajustar los filtros de búsqueda'
-                                                : 'No hay clientes registrados'}
-                                        </span>
-                                    </div>
-                                </td>
-                            </tr>
-                        ) : (
-                            filteredClients.map((client) => {
-                                const settings = client.sendSettings;
-                                return (
-                                    <tr key={client.id} className="hover:bg-gray-50">
-                                        <td className="px-3 py-4 text-center">
-                                            <button
-                                                onClick={() => handleEdit(client, 'stats')}
-                                                className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all hover:shadow-sm border border-transparent hover:border-indigo-200 group"
-                                                title="Ver estadísticas de emails"
-                                            >
-                                                <BarChart3 size={20} className="group-hover:scale-110 transition-transform" />
-                                            </button>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="font-medium text-gray-900">{client.nombre} {client.apellido}</div>
-                                            <div className="text-sm text-gray-500">{client.email}</div>
-                                            <div className="text-xs text-gray-400 font-mono">{client.zohoId}</div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <select
-                                                value={client.estado || 'Envío activo'}
-                                                onChange={(e) => handleEstadoChange(client.id, e.target.value)}
-                                                className={`px-3 py-1.5 rounded-lg text-sm font-medium border-2 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                                    client.estado === 'Envío activo' ? 'bg-green-50 border-green-200 text-green-800' :
-                                                    client.estado === 'Entrevista' ? 'bg-blue-50 border-blue-200 text-blue-800' :
-                                                    client.estado === 'Contratado' ? 'bg-purple-50 border-purple-200 text-purple-800' :
-                                                    client.estado === 'Cerrado' ? 'bg-red-50 border-red-200 text-red-800' :
-                                                    client.estado === 'Pausado' ? 'bg-yellow-50 border-yellow-200 text-yellow-800' :
-                                                    'bg-gray-50 border-gray-200 text-gray-800'
-                                                }`}
-                                            >
-                                                <option value="Envío activo">Envío activo</option>
-                                                <option value="Entrevista">Entrevista</option>
-                                                <option value="Contratado">Contratado</option>
-                                                <option value="Cerrado">Cerrado</option>
-                                                <option value="Pausado">Pausado</option>
-                                            </select>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <button
-                                                onClick={() => handleToggleEnvio(client.id, settings?.active ?? false)}
-                                                className="flex items-center gap-3 cursor-pointer"
-                                                title={settings?.active ? 'Click para desactivar envíos' : 'Click para activar envíos'}
-                                            >
-                                                {/* Toggle Switch */}
-                                                <div
-                                                    className="relative inline-block w-12 h-7 rounded-full transition-all duration-300 ease-in-out"
-                                                    style={{
-                                                        backgroundColor: settings?.active ? '#22c55e' : '#d1d5db',
-                                                    }}
-                                                >
-                                                    <div
-                                                        className="absolute top-1 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-300 ease-in-out"
-                                                        style={{
-                                                            left: settings?.active ? '26px' : '4px',
-                                                        }}
-                                                    />
-                                                </div>
-                                            </button>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <button
-                                                onClick={() => handleTogglePreviewMode(client.id, settings?.previewEnabled ?? true)}
-                                                className="flex items-center gap-2 cursor-pointer group"
-                                                title={settings?.previewEnabled ? 'Modo Preview activo - Click para cambiar a Automático' : 'Modo Automático activo - Click para cambiar a Preview'}
-                                            >
-                                                {settings?.previewEnabled ? (
-                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 group-hover:bg-blue-200 transition-colors">
-                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                        </svg>
-                                                        Preview
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200 group-hover:bg-orange-200 transition-colors">
-                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                                        </svg>
-                                                        Auto
-                                                    </span>
-                                                )}
-                                            </button>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            {settings ? (
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-20 h-2.5 bg-gray-200 rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full bg-blue-500 rounded-full"
-                                                            style={{ width: `${Math.min((settings.currentDailyLimit / settings.targetDailyLimit) * 100, 100)}%` }}
-                                                        ></div>
-                                                    </div>
-                                                    <span className="text-sm font-semibold text-gray-800">
-                                                        {settings.currentDailyLimit} / {settings.targetDailyLimit}
-                                                    </span>
-                                                </div>
-                                            ) : (
-                                                <span className="text-gray-500 italic text-sm">Sin config</span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <button
-                                                onClick={() => handleEdit(client)}
-                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                                            >
-                                                <Settings size={20} />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                );
-                            })
-                        )}
-                    </tbody>
-                </table>
             </div>
+        )}
 
-            {/* Confirm Dialog */}
-            <ConfirmDialog
-                open={confirmDialog.open}
-                onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}
-                title={confirmDialog.title}
-                description={confirmDialog.description}
-                onConfirm={confirmDialog.onConfirm}
-                variant={confirmDialog.variant}
-                confirmText="Confirmar"
-                cancelText="Cancelar"
-            />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <table className="w-full text-left">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                        <th className="px-3 py-3 font-medium text-gray-500 text-center w-16">Stats</th>
+                        <th className="px-6 py-3 font-medium text-gray-500">Info Cliente</th>
+                        <th className="px-6 py-3 font-medium text-gray-500">Estado CRM</th>
+                        <th className="px-6 py-3 font-medium text-gray-500">Estado Envío</th>
+                        <th className="px-6 py-3 font-medium text-gray-500">Modo</th>
+                        <th className="px-6 py-3 font-medium text-gray-500">Warmup (Act / Obj)</th>
+                        <th className="px-6 py-3 font-medium text-gray-500">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                    {loading ? (
+                        <tr>
+                            <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                                <div className="flex flex-col items-center gap-2">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                                    <span>Cargando clientes...</span>
+                                </div>
+                            </td>
+                        </tr>
+                    ) : filteredClients.length === 0 ? (
+                        <tr>
+                            <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                                <div className="flex flex-col items-center gap-2">
+                                    <Filter size={32} className="text-gray-300" />
+                                    <span className="font-medium">No se encontraron clientes</span>
+                                    <span className="text-sm">
+                                        {(searchTerm || estadoCrmFilter || estadoEnvioFilter || warmupFilter)
+                                            ? 'Intenta ajustar los filtros de búsqueda'
+                                            : 'No hay clientes registrados'}
+                                    </span>
+                                </div>
+                            </td>
+                        </tr>
+                    ) : (
+                        filteredClients.map((client) => {
+                            const settings = client.sendSettings;
+                            return (
+                                <tr key={client.id} className="hover:bg-gray-50">
+                                    <td className="px-3 py-4 text-center">
+                                        <button
+                                            onClick={() => handleEdit(client, 'stats')}
+                                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all hover:shadow-sm border border-transparent hover:border-indigo-200 group"
+                                            title="Ver estadísticas de emails"
+                                        >
+                                            <BarChart3 size={20} className="group-hover:scale-110 transition-transform" />
+                                        </button>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="font-medium text-gray-900">{client.nombre} {client.apellido}</div>
+                                        <div className="text-sm text-gray-500">{client.email}</div>
+                                        <div className="text-xs text-gray-400 font-mono">{client.zohoId}</div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <select
+                                            value={client.estado || 'Envío activo'}
+                                            onChange={(e) => handleEstadoChange(client.id, e.target.value)}
+                                            className={`px-3 py-1.5 rounded-lg text-sm font-medium border-2 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${client.estado === 'Envío activo' ? 'bg-green-50 border-green-200 text-green-800' :
+                                                client.estado === 'Entrevista' ? 'bg-blue-50 border-blue-200 text-blue-800' :
+                                                    client.estado === 'Contratado' ? 'bg-purple-50 border-purple-200 text-purple-800' :
+                                                        client.estado === 'Cerrado' ? 'bg-red-50 border-red-200 text-red-800' :
+                                                            client.estado === 'Pausado' ? 'bg-yellow-50 border-yellow-200 text-yellow-800' :
+                                                                'bg-gray-50 border-gray-200 text-gray-800'
+                                                }`}
+                                        >
+                                            <option value="Envío activo">Envío activo</option>
+                                            <option value="Entrevista">Entrevista</option>
+                                            <option value="Contratado">Contratado</option>
+                                            <option value="Cerrado">Cerrado</option>
+                                            <option value="Pausado">Pausado</option>
+                                        </select>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <button
+                                            onClick={() => handleToggleEnvio(client.id, settings?.active ?? false)}
+                                            className="flex items-center gap-3 cursor-pointer"
+                                            title={settings?.active ? 'Click para desactivar envíos' : 'Click para activar envíos'}
+                                        >
+                                            {/* Toggle Switch */}
+                                            <div
+                                                className="relative inline-block w-12 h-7 rounded-full transition-all duration-300 ease-in-out"
+                                                style={{
+                                                    backgroundColor: settings?.active ? '#22c55e' : '#d1d5db',
+                                                }}
+                                            >
+                                                <div
+                                                    className="absolute top-1 w-5 h-5 bg-white rounded-full shadow-md transition-all duration-300 ease-in-out"
+                                                    style={{
+                                                        left: settings?.active ? '26px' : '4px',
+                                                    }}
+                                                />
+                                            </div>
+                                        </button>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <button
+                                            onClick={() => handleTogglePreviewMode(client.id, settings?.previewEnabled ?? true)}
+                                            className="flex items-center gap-2 cursor-pointer group"
+                                            title={settings?.previewEnabled ? 'Modo Preview activo - Click para cambiar a Automático' : 'Modo Automático activo - Click para cambiar a Preview'}
+                                        >
+                                            {settings?.previewEnabled ? (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 group-hover:bg-blue-200 transition-colors">
+                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                    </svg>
+                                                    Preview
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200 group-hover:bg-orange-200 transition-colors">
+                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                                    </svg>
+                                                    Auto
+                                                </span>
+                                            )}
+                                        </button>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        {settings ? (
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-20 h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-blue-500 rounded-full"
+                                                        style={{ width: `${Math.min((settings.currentDailyLimit / settings.targetDailyLimit) * 100, 100)}%` }}
+                                                    ></div>
+                                                </div>
+                                                <span className="text-sm font-semibold text-gray-800">
+                                                    {settings.currentDailyLimit} / {settings.targetDailyLimit}
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <span className="text-gray-500 italic text-sm">Sin config</span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <button
+                                            title="Configuración"
+                                            onClick={() => handleEdit(client)}
+                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                                        >
+                                            <Settings size={20} />
+                                        </button>
+                                        <button
+                                            title="Eliminar cliente"
+                                            onClick={() => handleCheckDeletion(client)}
+                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition ml-1"
+                                        >
+                                            <Trash2 size={20} />
+                                        </button>
+                                    </td>
+                                </tr>
+                            );
+                        })
+                    )}
+                </tbody>
+            </table>
         </div>
-    );
+
+        {/* Confirm Dialog */}
+        <ConfirmDialog
+            open={confirmDialog.open}
+            onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}
+            title={confirmDialog.title}
+            description={confirmDialog.description}
+            onConfirm={confirmDialog.onConfirm}
+            variant={confirmDialog.variant}
+            confirmText="Confirmar"
+            cancelText="Cancelar"
+        />
+
+        {/* Delete Client Modal */}
+        {deletingClient && deletionEligibility && (
+            <DeleteClientModal
+                client={deletingClient}
+                eligibility={deletionEligibility}
+                onClose={() => {
+                    setDeletingClient(null);
+                    setDeletionEligibility(null);
+                }}
+                onConfirm={handleDeleteClient}
+                isDeleting={isDeleting}
+            />
+        )}
+    </div>
+);
 }
