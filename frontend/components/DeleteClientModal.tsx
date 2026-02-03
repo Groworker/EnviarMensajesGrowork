@@ -60,41 +60,59 @@ export function DeleteClientModal({
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6">
                     {/* Client Info Card */}
-                    <div className="bg-gray-50 rounded-lg p-4 mb-6 border border-gray-200">
-                        <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                            <Info size={18} className="text-blue-600" />
+                    <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-5 mb-6 border-2 border-gray-300">
+                        <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 text-base">
+                            <Info size={20} className="text-blue-600" />
                             Información del Cliente
                         </h3>
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                            <div>
-                                <span className="text-gray-600">ID:</span>
-                                <span className="ml-2 font-medium text-gray-900">{clientInfo.id}</span>
+                        <div className="space-y-3">
+                            {/* ID and CRM Status */}
+                            <div className="flex items-center justify-between bg-white rounded-lg p-3 border border-gray-200">
+                                <div className="flex items-center gap-4">
+                                    <div>
+                                        <span className="text-xs text-gray-500 uppercase font-semibold">ID</span>
+                                        <div className="text-lg font-bold text-gray-900">{clientInfo.id}</div>
+                                    </div>
+                                    <div className="h-10 w-px bg-gray-300"></div>
+                                    <div>
+                                        <span className="text-xs text-gray-500 uppercase font-semibold">Estado CRM</span>
+                                        <div className="mt-1">
+                                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold ${clientInfo.estado === 'Cerrado'
+                                                    ? 'bg-red-100 text-red-800'
+                                                    : clientInfo.estado === 'Pausado'
+                                                        ? 'bg-yellow-100 text-yellow-800'
+                                                        : 'bg-green-100 text-green-800'
+                                                }`}>
+                                                {clientInfo.estado}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <span className="text-gray-600">Estado CRM:</span>
-                                <span className={`ml-2 font-medium ${clientInfo.estado === 'Cerrado' ? 'text-red-600' : 'text-gray-900'
-                                    }`}>
-                                    {clientInfo.estado}
-                                </span>
+
+                            {/* Email Operativo */}
+                            <div className="bg-white rounded-lg p-3 border border-gray-200">
+                                <span className="text-xs text-gray-500 uppercase font-semibold block mb-2">Email Operativo (Google Workspace)</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-mono font-medium text-gray-900 bg-gray-100 px-3 py-1.5 rounded border border-gray-300">
+                                        {clientInfo.emailOperativo || 'No configurado'}
+                                    </span>
+                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${clientInfo.googleAccountExists
+                                            ? 'bg-green-100 text-green-800'
+                                            : 'bg-red-100 text-red-800'
+                                        }`}>
+                                        {clientInfo.googleAccountExists ? '✓ Existe' : '✗ No existe'}
+                                    </span>
+                                </div>
                             </div>
-                            <div className="col-span-2">
-                                <span className="text-gray-600">Email Operativo (Google Workspace):</span>
-                                <span className="ml-2 font-medium text-gray-900">
-                                    {clientInfo.emailOperativo || 'No configurado'}
-                                </span>
-                            </div>
-                            <div>
-                                <span className="text-gray-600">Cuenta Google Workspace:</span>
-                                <span className={`ml-2 font-medium ${clientInfo.googleAccountExists ? 'text-green-600' : 'text-red-600'
-                                    }`}>
-                                    {clientInfo.googleAccountExists ? 'Existe' : 'No existe'}
-                                </span>
-                            </div>
-                            <div>
-                                <span className="text-gray-600">Ofertas pendientes:</span>
-                                <span className="ml-2 font-medium text-gray-900">
-                                    {clientInfo.matchingOffersCount}
-                                </span>
+
+                            {/* Ofertas Pendientes */}
+                            <div className="bg-white rounded-lg p-3 border border-gray-200">
+                                <span className="text-xs text-gray-500 uppercase font-semibold block mb-2">Ofertas Pendientes</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-2xl font-bold text-orange-600">{clientInfo.matchingOffersCount}</span>
+                                    <span className="text-sm text-gray-600">ofertas de trabajo que coinciden con sus preferencias</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -126,8 +144,8 @@ export function DeleteClientModal({
 
                     {/* Deletion Eligibility */}
                     <div className={`rounded-lg p-4 mb-6 border ${canDelete
-                            ? 'bg-green-50 border-green-300'
-                            : 'bg-yellow-50 border-yellow-300'
+                        ? 'bg-green-50 border-green-300'
+                        : 'bg-yellow-50 border-yellow-300'
                         }`}>
                         <h3 className={`font-semibold mb-3 flex items-center gap-2 ${canDelete ? 'text-green-900' : 'text-yellow-900'
                             }`}>
@@ -168,19 +186,22 @@ export function DeleteClientModal({
                     </div>
 
                     {/* Deletion Reason */}
-                    <div className="mb-4">
-                        <label htmlFor="deletion-reason" className="block text-sm font-medium text-gray-700 mb-2">
-                            Razón de Eliminación (opcional)
+                    <div className="mb-4 bg-gray-50 rounded-lg p-4 border-2 border-gray-300">
+                        <label htmlFor="deletion-reason" className="block text-sm font-bold text-gray-800 mb-3">
+                            📝 Razón de Eliminación (opcional)
                         </label>
                         <textarea
                             id="deletion-reason"
                             value={reason}
                             onChange={(e) => setReason(e.target.value)}
                             disabled={isDeleting}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
-                            rows={3}
-                            placeholder="Ej: Cliente solicitó cancelación del servicio"
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
+                            rows={4}
+                            placeholder="Ej: Cliente solicitó cancelación del servicio, cambio de proveedor, etc."
                         />
+                        <p className="text-xs text-gray-600 mt-2">
+                            Esta información se guardará en el historial para futuras consultas
+                        </p>
                     </div>
 
                     {/* Confirmation Checkbox */}
