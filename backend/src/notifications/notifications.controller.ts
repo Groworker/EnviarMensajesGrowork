@@ -18,8 +18,10 @@ export class NotificationsController {
     async findAll(
         @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
         @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+        @Query('filter') filter?: string,
     ) {
-        const notifications = await this.notificationsService.findAll(limit, offset);
+        const isArchived = filter === 'archived';
+        const notifications = await this.notificationsService.findAll(limit, offset, isArchived ? 'archived' : 'all');
         return { notifications };
     }
 
@@ -51,6 +53,12 @@ export class NotificationsController {
     @Delete(':id')
     async delete(@Param('id', ParseIntPipe) id: number) {
         await this.notificationsService.delete(id);
-        return { message: 'Notification deleted successfully' };
+        return { message: 'Notification archived successfully' };
+    }
+
+    @Patch(':id/restore')
+    async restore(@Param('id', ParseIntPipe) id: number) {
+        await this.notificationsService.restore(id);
+        return { message: 'Notification restored successfully' };
     }
 }

@@ -68,6 +68,9 @@ export class Notification {
     @Column({ name: 'is_read', default: false })
     isRead: boolean;
 
+    @Column({ name: 'is_archived', default: false })
+    isArchived: boolean;
+
     @CreateDateColumn({ name: 'created_at' })
     createdAt: Date;
 }

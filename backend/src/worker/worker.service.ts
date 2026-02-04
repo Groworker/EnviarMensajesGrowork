@@ -271,7 +271,11 @@ export class WorkerService {
     // FILTER: Job Title (from client.jobTitle)
     if (isFilterEnabled('jobTitle') && client.jobTitle) {
       const jobTitleMode = criteria.jobTitleMatchMode || 'contains';
-      if (jobTitleMode === 'exact') {
+
+      if (jobTitleMode === 'none') {
+        // Do nothing - explicitly enabled but set to 'none' means "don't filter"
+        // This is useful when the check is ON in the UI but the user chose "Ninguno"
+      } else if (jobTitleMode === 'exact') {
         conditions.push('LOWER(offer.puesto) = LOWER(:jobTitle)');
         parameters.jobTitle = client.jobTitle;
       } else {

@@ -1138,12 +1138,15 @@ export default function ClientsPage() {
                                                     >
                                                         <option value="contains">🔎 Contiene (recomendado)</option>
                                                         <option value="exact">🎯 Exacto</option>
+                                                        <option value="none">🙈 Ninguno</option>
                                                     </select>
                                                     <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
                                                         <p className="text-xs text-gray-700 leading-relaxed">
                                                             <strong className="text-gray-900">Contiene:</strong> Busca ofertas que contengan el puesto<br />
                                                             <span className="text-gray-600 italic">Ej: "Chef" encuentra "Chef de Cocina", "Sous Chef"</span><br />
-                                                            <strong className="text-gray-900 mt-1 inline-block">Exacto:</strong> Solo ofertas con el mismo puesto exacto
+                                                            <span className="text-gray-600 italic">Ej: "Chef" encuentra "Chef de Cocina", "Sous Chef"</span><br />
+                                                            <strong className="text-gray-900 mt-1 inline-block">Exacto:</strong> Solo ofertas con el mismo puesto exacto<br />
+                                                            <strong className="text-gray-900 mt-1 inline-block">Ninguno:</strong> No filtra por puesto (acepta cualquier trabajo)
                                                         </p>
                                                     </div>
                                                 </div>

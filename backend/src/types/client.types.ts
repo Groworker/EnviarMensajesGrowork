@@ -23,6 +23,6 @@ export interface MatchingCriteria {
 
   // Nuevos campos de configuración
   matchMode?: 'all' | 'any';
-  jobTitleMatchMode?: 'exact' | 'contains';
+  jobTitleMatchMode?: 'exact' | 'contains' | 'none';
   enabledFilters?: string[];
 }

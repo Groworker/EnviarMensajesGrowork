@@ -29,7 +29,7 @@ class MatchingCriteriaDto {
   matchMode?: string;
 
   @IsOptional()
-  @IsIn(['exact', 'contains'])
+  @IsIn(['exact', 'contains', 'none'])
   jobTitleMatchMode?: string;
 
   @IsOptional()

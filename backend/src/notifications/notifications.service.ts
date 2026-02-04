@@ -39,26 +39,34 @@ export class NotificationsService {
         return this.notificationsRepository.save(notification);
     }
 
-    async findAll(limit = 50, offset = 0): Promise<Notification[]> {
-        return this.notificationsRepository.createQueryBuilder('notification')
+    async findAll(limit = 50, offset = 0, status: 'all' | 'archived' = 'all'): Promise<Notification[]> {
+        const query = this.notificationsRepository.createQueryBuilder('notification')
             .leftJoinAndSelect('notification.relatedClient', 'client')
             .orderBy('notification.createdAt', 'DESC')
             .take(limit)
-            .skip(offset)
-            .getMany();
+            .skip(offset);
+
+        if (status === 'archived') {
+            query.where('notification.isArchived = :isArchived', { isArchived: true });
+        } else {
+            query.where('notification.isArchived = :isArchived', { isArchived: false });
+        }
+
+        return query.getMany();
     }
 
     async findUnread(): Promise<Notification[]> {
         return this.notificationsRepository.createQueryBuilder('notification')
             .leftJoinAndSelect('notification.relatedClient', 'client')
             .where('notification.isRead = :isRead', { isRead: false })
+            .andWhere('notification.isArchived = :isArchived', { isArchived: false })
             .orderBy('notification.createdAt', 'DESC')
             .getMany();
     }
 
     async countUnread(): Promise<number> {
         return this.notificationsRepository.count({
-            where: { isRead: false },
+            where: { isRead: false, isArchived: false },
         });
     }
 
@@ -68,11 +76,19 @@ export class NotificationsService {
     }
 
     async markAllAsRead(): Promise<void> {
-        await this.notificationsRepository.update({ isRead: false }, { isRead: true });
+        await this.notificationsRepository.update(
+            { isRead: false, isArchived: false },
+            { isRead: true }
+        );
     }
 
     async delete(id: number): Promise<void> {
-        await this.notificationsRepository.delete(id);
+        // Soft delete (Archive)
+        await this.notificationsRepository.update(id, { isArchived: true });
+    }
+
+    async restore(id: number): Promise<void> {
+        await this.notificationsRepository.update(id, { isArchived: false });
     }
 
     // Helper methods for creating specific notification types
