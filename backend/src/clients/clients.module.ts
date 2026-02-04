@@ -14,6 +14,8 @@ import { GmailReaderService } from '../email/gmail-reader.service';
 import { EmailService } from '../email/email.service';
 import { EmailModule } from '../email/email.module';
 import { DriveModule } from '../drive/drive.module';
+import { ZohoModule } from '../zoho/zoho.module';
+import { GoogleWorkspaceModule } from '../google-workspace/google-workspace.module';
 
 @Module({
     imports: [
@@ -27,7 +29,9 @@ import { DriveModule } from '../drive/drive.module';
         ]),
         NotificationsModule,
         EmailModule,
-        DriveModule
+        DriveModule,
+        ZohoModule,
+        GoogleWorkspaceModule,
     ],
     controllers: [ClientsController],
     providers: [ClientDeletionService, ClientsService],
