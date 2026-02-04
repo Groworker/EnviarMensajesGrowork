@@ -307,7 +307,7 @@ export default function WorkflowNotifications() {
                     {/* Zoho Link */}
                     {(meta.zohoId || client?.zohoId) && (
                         <a
-                            href={`https://crm.zoho.eu/crm/org20066589334/tab/Contacts/${meta.zohoId || client?.zohoId}`}
+                            href={`https://crm.zoho.eu/crm/org20082333710/tab/Contacts/${meta.zohoId || client?.zohoId}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
