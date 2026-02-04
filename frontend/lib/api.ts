@@ -1,7 +1,8 @@
 import axios from 'axios';
+import { getBackendUrl } from './api-config';
 
 const api = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_URL || '/api',
+    baseURL: getBackendUrl(),
     headers: {
         'Content-Type': 'application/json',
     },
