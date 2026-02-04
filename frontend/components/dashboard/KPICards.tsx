@@ -15,6 +15,11 @@ interface KPIData {
 interface KPICardProps {
     title: string;
     value: string | number;
+    icon: React.ReactNode;
+    trend?: string;
+    trendDirection?: 'up' | 'down' | 'neutral';
+    color?: 'blue' | 'indigo' | 'green' | 'purple' | 'red';
+}
 function KPICard({ title, value, icon, trend, trendDirection = 'neutral', color }: KPICardProps) {
     const trendColors = {
         up: 'text-emerald-600 bg-emerald-50/50 border-emerald-100',
