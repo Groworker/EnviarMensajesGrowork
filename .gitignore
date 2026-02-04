@@ -87,5 +87,8 @@ next-env.d.ts
 # Development/test scripts (legacy - now in scripts/ folder)
 # Los scripts de utilidad ahora estan organizados en scripts/db/ y scripts/testing/
 
+# n8n Workflows (configuration files)
+workflows/
+
 # Windows specific
 nul

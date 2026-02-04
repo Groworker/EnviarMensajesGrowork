@@ -116,6 +116,17 @@ export class Client {
   @Column({ name: 'deletion_reason', type: 'text', nullable: true })
   deletionReason: string | null;
 
+  // Auto-deletion tracking fields
+  @Column({ name: 'estado_changed_at', type: 'timestamp', nullable: true })
+  estadoChangedAt: Date;
+
+  @Column({ name: 'last_email_sent_at', type: 'timestamp', nullable: true })
+  lastEmailSentAt: Date;
+
+  // Discord integration
+  @Column({ name: 'discord_channel_id', length: 100, nullable: true })
+  discordChannelId: string;
+
   // Relation to Send Settings (One-to-One)
   @OneToOne(() => ClientSendSettings, (settings) => settings.client)
   sendSettings: ClientSendSettings;

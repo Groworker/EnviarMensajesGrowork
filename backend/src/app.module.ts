@@ -19,6 +19,12 @@ import { EmailModule } from './email/email.module';
 import { ZohoModule } from './zoho/zoho.module';
 import { AiModule } from './ai/ai.module';
 import { DriveModule } from './drive/drive.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { ClientsModule } from './clients/clients.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { N8nModule } from './n8n/n8n.module';
+import { Notification } from './notifications/entities/notification.entity';
+import { DeletionLog } from './clients/entities/deletion-log.entity';
 import configuration from './config/configuration';
 import { envValidationSchema } from './config/env.validation';
 
@@ -53,6 +59,8 @@ import { envValidationSchema } from './config/env.validation';
           EmailReputation,
           EmailResponse,
           GlobalSendConfig,
+          Notification,
+          DeletionLog,
         ],
         synchronize: false, // We will use migrations
         ssl: configService.get<string>('DATABASE_SSL') === 'true',
@@ -65,6 +73,10 @@ import { envValidationSchema } from './config/env.validation';
     ZohoModule,
     AiModule,
     DriveModule,
+    NotificationsModule,
+    ClientsModule,
+    DashboardModule,
+    N8nModule,
   ],
   controllers: [AppController],
   providers: [AppService],
