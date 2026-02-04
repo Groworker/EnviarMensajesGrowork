@@ -12,6 +12,9 @@ import { AiModule } from '../ai/ai.module';
 import { EmailPreviewController } from './email-preview.controller';
 import { EmailResponsesController } from './email-responses.controller';
 import { GlobalConfigController } from './global-config.controller';
+import { EmailPreviewService } from './email-preview.service';
+import { EmailResponsesService } from './email-responses.service';
+import { GlobalConfigService } from './global-config.service';
 
 @Module({
   imports: [
@@ -20,7 +23,21 @@ import { GlobalConfigController } from './global-config.controller';
     forwardRef(() => AiModule),
   ],
   controllers: [EmailPreviewController, EmailResponsesController, GlobalConfigController],
-  providers: [EmailService, GmailReaderService, ResponseSyncService],
-  exports: [EmailService, GmailReaderService, ResponseSyncService],
+  providers: [
+    EmailService,
+    GmailReaderService,
+    ResponseSyncService,
+    EmailPreviewService,
+    EmailResponsesService,
+    GlobalConfigService
+  ],
+  exports: [
+    EmailService,
+    GmailReaderService,
+    ResponseSyncService,
+    EmailPreviewService,
+    EmailResponsesService,
+    GlobalConfigService
+  ],
 })
-export class EmailModule { }
+export class EmailModule { } }
