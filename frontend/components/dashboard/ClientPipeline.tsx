@@ -70,7 +70,7 @@ export default function ClientPipeline() {
                 <p className="text-sm text-gray-600">Distribución por estado</p>
             </CardHeader>
             <CardContent>
-                <div className="h-80">
+                <div className="w-full h-80" style={{ minHeight: '320px' }}>
                     <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                             <Pie

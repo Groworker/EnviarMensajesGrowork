@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getBackendUrl } from '../../../lib/api-config';
 
+export const dynamic = 'force-dynamic';
+
 // Universal Proxy Handler
 async function handleProxy(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
     const { path } = await params;

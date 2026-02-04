@@ -6,15 +6,15 @@ export const getBackendUrl = () => {
 
     // 2. Servidor:
 
-    // Prioridad 1: Variable explícita de backend (si existe)
+    // Prioridad 1: Variable explícita de backend
     if (process.env.BACKEND_URL) return process.env.BACKEND_URL;
 
-    // Prioridad 2: En Producción, usar la URL interna de Docker proporcionada por el usuario
+    // Prioridad 2: En Producción, intentar localhost primero (mismo contenedor/pod)
+    // Esto resuelve problemas de loopback 502 en EasyPanel si el servicio es el mismo
     if (process.env.NODE_ENV === 'production') {
-        // Opción A: Nombre del servicio Docker (lo más probable en EasyPanel)
-        return 'http://web_interna_sendmail:4000/api';
+        return 'http://127.0.0.1:4000/api';
     }
 
-    // Prioridad 3: Desarrollo local (Next.js y NestJS corriendo localmente)
+    // Fallback local dev
     return 'http://localhost:3000/api';
 };
