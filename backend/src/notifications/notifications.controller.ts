@@ -6,6 +6,7 @@ import {
     Param,
     Query,
     ParseIntPipe,
+    DefaultValuePipe,
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 
@@ -15,8 +16,8 @@ export class NotificationsController {
 
     @Get()
     async findAll(
-        @Query('limit', ParseIntPipe) limit = 50,
-        @Query('offset', ParseIntPipe) offset = 0,
+        @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+        @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
     ) {
         const notifications = await this.notificationsService.findAll(limit, offset);
         return { notifications };

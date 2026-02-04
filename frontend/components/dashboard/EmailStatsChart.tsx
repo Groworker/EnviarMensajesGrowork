@@ -91,7 +91,7 @@ export default function EmailStatsChart() {
                     </div>
                 </div>
 
-                <div className="h-80">
+                <div className="h-80" style={{ minHeight: '320px', width: '100%' }}>
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={stats.byDay}>
                             <CartesianGrid strokeDasharray="3 3" />
