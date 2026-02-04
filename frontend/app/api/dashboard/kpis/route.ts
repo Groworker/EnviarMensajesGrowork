@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+import { getBackendUrl } from '../../../../lib/api-config';
 
 export async function GET() {
     try {
-        const response = await fetch(`${API_URL}/dashboard/kpis`, {
+        const response = await fetch(`${getBackendUrl()}/dashboard/kpis`, {
             cache: 'no-store'
         });
 

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+import { getBackendUrl } from '../../../../../../lib/api-config';
 
 export async function PATCH(
     request: NextRequest,
@@ -9,7 +8,7 @@ export async function PATCH(
     const { id } = await params;
 
     try {
-        const response = await fetch(`${API_URL}/notifications/${id}/read`, {
+        const response = await fetch(`${getBackendUrl()}/notifications/${id}/read`, {
             method: 'PATCH',
             cache: 'no-store'
         });

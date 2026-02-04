@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+import { getBackendUrl } from '../../../../../lib/api-config';
 
 export async function GET() {
     try {
-        const response = await fetch(`${API_URL}/notifications/unread/count`, {
+        const response = await fetch(`${getBackendUrl()}/notifications/unread/count`, {
             cache: 'no-store'
         });
 
