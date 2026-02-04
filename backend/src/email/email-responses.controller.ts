@@ -20,7 +20,7 @@ import { ResponseClassification } from '../entities/email-response.entity';
 import { ResponseSyncService } from './response-sync.service';
 import { SendReplyDto } from './dto/send-reply.dto';
 
-@Controller('api/email-responses')
+@Controller('email-responses')
 export class EmailResponsesController {
   private readonly logger = new Logger(EmailResponsesController.name);
 

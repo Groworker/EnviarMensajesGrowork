@@ -12,9 +12,9 @@ import {
 import { EmailPreviewService } from './email-preview.service';
 import { UpdateEmailDto } from './dto/update-email.dto';
 
-@Controller('api/email-preview')
+@Controller('email-preview')
 export class EmailPreviewController {
-  constructor(private readonly emailPreviewService: EmailPreviewService) {}
+  constructor(private readonly emailPreviewService: EmailPreviewService) { }
 
   /**
    * Get all emails pending review

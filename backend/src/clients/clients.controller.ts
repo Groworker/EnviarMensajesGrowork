@@ -23,7 +23,7 @@ import {
 import { Client } from '../entities/client.entity';
 import { ClientSendSettings } from '../entities/client-send-settings.entity';
 
-@Controller('api/clients')
+@Controller('clients')
 export class ClientsController {
   constructor(private readonly clientsService: ClientsService) { }
 

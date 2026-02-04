@@ -10,7 +10,7 @@ import {
 import { GlobalConfigService } from './global-config.service';
 import { UpdateGlobalConfigDto } from './dto/update-global-config.dto';
 
-@Controller('api/global-config')
+@Controller('global-config')
 export class GlobalConfigController {
     private readonly logger = new Logger(GlobalConfigController.name);
 
