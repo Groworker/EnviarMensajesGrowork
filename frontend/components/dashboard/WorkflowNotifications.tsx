@@ -239,53 +239,62 @@ export default function WorkflowNotifications() {
             <div className={`mt-3 text-sm space-y-2 border-t border-black/5 pt-2 ${!expanded && 'hidden'}`}>
                 {/* Client Info */}
                 {client && (
-                    <div className="flex items-center gap-2 text-gray-700">
-                        <div className="bg-gray-100 p-1 rounded">
-                            <Database className="w-3 h-3" />
+                    <div className="flex items-center gap-2 text-gray-700 bg-gray-50/50 p-2 rounded-md">
+                        <div className="bg-white p-1 rounded shadow-sm border border-gray-100">
+                            <Database className="w-3 h-3 text-indigo-500" />
                         </div>
-                        <span className="font-semibold">Cliente:</span>
-                        <span>{client.nombre} {client.apellido}</span>
+                        <span className="font-semibold text-xs uppercase tracking-wide text-gray-500">CLIENTE</span>
+                        <span className="font-medium">{client.nombre} {client.apellido}</span>
                     </div>
                 )}
 
-                {/* Zoho Link */}
-                {(meta.zohoId || client?.zohoId) && (
-                    <div className="flex items-center gap-2">
-                        <ExternalLink className="w-3 h-3 text-blue-500" />
-                        <a
-                            href={`https://crm.zoho.eu/crm/org20066589334/tab/Contacts/${meta.zohoId || client?.zohoId}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline text-xs font-medium"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            Ver en Zoho CRM
-                        </a>
-                    </div>
-                )}
+                {/* Dynamic Metadata Grid */}
+                <div className="grid grid-cols-1 gap-2">
+                    {/* Creator Assigned */}
+                    {meta.creador_nombre && (
+                        <div className="flex items-center gap-2 text-gray-700">
+                            <div className="bg-purple-50 p-1 rounded">
+                                <FileText className="w-3 h-3 text-purple-600" />
+                            </div>
+                            <span className="text-xs text-gray-500">Asignado a:</span>
+                            <span className="font-medium">{meta.creador_nombre}</span>
+                        </div>
+                    )}
+
+                    {/* File Name */}
+                    {(meta.archivo_nombre || meta.cv_archivo_nombre) && (
+                        <div className="flex items-center gap-2 text-gray-700">
+                            <div className="bg-orange-50 p-1 rounded">
+                                <FileText className="w-3 h-3 text-orange-600" />
+                            </div>
+                            <span className="text-xs text-gray-500">Archivo:</span>
+                            <span className="font-medium font-mono text-xs">{meta.archivo_nombre || meta.cv_archivo_nombre}</span>
+                        </div>
+                    )}
+                </div>
 
                 {/* Email Details */}
                 {(meta.email_operativo || meta.email_destino) && (
-                    <div className="bg-white/60 p-2 rounded border border-gray-200/50 space-y-1">
+                    <div className="bg-blue-50/30 p-2 rounded border border-blue-100/50 space-y-1">
                         {meta.email_destino && (
                             <div className="flex items-center gap-2">
-                                <Mail className="w-3 h-3 text-gray-500" />
-                                <span className="text-gray-600 text-xs">Destino:</span>
-                                <span className="font-mono text-xs">{meta.email_destino}</span>
+                                <Mail className="w-3 h-3 text-gray-400" />
+                                <span className="text-gray-500 text-xs w-16">Destino:</span>
+                                <span className="font-mono text-xs text-gray-700">{meta.email_destino}</span>
                             </div>
                         )}
                         {meta.email_operativo && (
                             <div className="flex items-center gap-2">
                                 <Mail className="w-3 h-3 text-blue-500" />
-                                <span className="text-gray-600 text-xs">Corporativo:</span>
-                                <span className="font-mono text-xs text-blue-700">{meta.email_operativo}</span>
+                                <span className="text-gray-500 text-xs w-16">Corporativo:</span>
+                                <span className="font-mono text-xs text-blue-700 font-medium">{meta.email_operativo}</span>
                             </div>
                         )}
                         {meta.password && (
                             <div className="flex items-center gap-2">
                                 <Unlock className="w-3 h-3 text-orange-500" />
-                                <span className="text-gray-600 text-xs">Contraseña:</span>
-                                <span className="font-mono text-xs bg-gray-100 px-1 rounded blur-sm hover:blur-none transition-all cursor-help" title="Click to reveal">
+                                <span className="text-gray-500 text-xs w-16">Contraseña:</span>
+                                <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 border border-gray-200">
                                     {meta.password}
                                 </span>
                             </div>
@@ -293,26 +302,43 @@ export default function WorkflowNotifications() {
                     </div>
                 )}
 
-                {/* Folder Links */}
-                {(meta.folder_url || meta.carpeta_url) && (
-                    <div className="flex items-center gap-2">
-                        <Folder className="w-3 h-3 text-yellow-600" />
+                {/* Action Links */}
+                <div className="flex flex-wrap gap-2 pt-1">
+                    {/* Zoho Link */}
+                    {(meta.zohoId || client?.zohoId) && (
+                        <a
+                            href={`https://crm.zoho.eu/crm/org20066589334/tab/Contacts/${meta.zohoId || client?.zohoId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 text-blue-700 rounded-md text-xs font-medium hover:bg-blue-100 transition-colors border border-blue-200/50"
+                        >
+                            <ExternalLink className="w-3 h-3" />
+                            Zoho CRM
+                        </a>
+                    )}
+
+                    {/* Folder Links */}
+                    {(meta.folder_url || meta.carpeta_url) && (
                         <a
                             href={meta.folder_url || meta.carpeta_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline text-xs"
                             onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-yellow-50 text-yellow-700 rounded-md text-xs font-medium hover:bg-yellow-100 transition-colors border border-yellow-200/50"
                         >
-                            Abrir Carpeta Drive
+                            <Folder className="w-3 h-3" />
+                            Carpeta Drive
                         </a>
-                    </div>
-                )}
+                    )}
+                </div>
 
-                {/* Technical Details */}
-                <div className="pt-2">
-                    <div className="text-[10px] text-gray-400 font-mono uppercase tracking-wider">
-                        {notification.relatedWorkflow ? `Workflow: ${notification.relatedWorkflow}` : 'System Notification'}
+                {/* Technical Details Footer */}
+                <div className="pt-2 mt-2 border-t border-gray-100 flex justify-between items-center opacity-60 hover:opacity-100 transition-opacity">
+                    <div className="text-[10px] text-gray-400 font-mono uppercase tracking-wider flex items-center gap-1">
+                        <span>ID: {notification.id}</span>
+                        <span>•</span>
+                        <span>{notification.relatedWorkflow ? (WORKFLOW_NAMES[notification.relatedWorkflow] || notification.relatedWorkflow) : 'SISTEMA'}</span>
                     </div>
                 </div>
             </div>
