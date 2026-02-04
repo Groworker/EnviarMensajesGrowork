@@ -20,8 +20,8 @@ import {
   UpdateEstadoDto,
   DeleteClientDto,
 } from './dto';
-import { Client } from '../../entities/client.entity';
-import { ClientSendSettings } from '../../entities/client-send-settings.entity';
+import { Client } from '../entities/client.entity';
+import { ClientSendSettings } from '../entities/client-send-settings.entity';
 
 @Controller('api/clients')
 export class ClientsController {

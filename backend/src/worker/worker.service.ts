@@ -15,7 +15,7 @@ import { EmailService } from '../email/email.service';
 import { AiService } from '../ai/ai.service';
 import { DriveService } from '../drive/drive.service';
 import { EmailAttachment } from '../drive/interfaces/drive-file.interface';
-import { GlobalConfigService } from '../api/global-config/global-config.service';
+import { GlobalConfigService } from '../email/global-config.service';
 
 @Injectable()
 export class WorkerService {

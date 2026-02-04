@@ -40,4 +40,4 @@ import { GlobalConfigService } from './global-config.service';
     GlobalConfigService
   ],
 })
-export class EmailModule { } }
+export class EmailModule { }

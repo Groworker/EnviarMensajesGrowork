@@ -9,12 +9,12 @@ import { Repository } from 'typeorm';
 import {
   EmailResponse,
   ResponseClassification,
-} from '../../entities/email-response.entity';
-import { EmailSend } from '../../entities/email-send.entity';
-import { ResponseSyncService } from '../../email/response-sync.service';
-import { AiService } from '../../ai/ai.service';
-import { EmailService } from '../../email/email.service';
-import { ReplyGeneratorContext } from '../../ai/prompts/reply-generator.prompt';
+} from '../entities/email-response.entity';
+import { EmailSend } from '../entities/email-send.entity';
+import { ResponseSyncService } from './response-sync.service';
+import { AiService } from '../ai/ai.service';
+import { EmailService } from './email.service';
+import { ReplyGeneratorContext } from '../ai/prompts/reply-generator.prompt';
 
 export interface ResponseFilters {
   clientId?: number;
@@ -42,7 +42,7 @@ export class EmailResponsesService {
     private responseSyncService: ResponseSyncService,
     private aiService: AiService,
     private emailService: EmailService,
-  ) {}
+  ) { }
 
   /**
    * Get all responses with optional filters

@@ -16,8 +16,8 @@ import {
   EmailResponsesService,
   ResponseFilters,
 } from './email-responses.service';
-import { ResponseClassification } from '../../entities/email-response.entity';
-import { ResponseSyncService } from '../../email/response-sync.service';
+import { ResponseClassification } from '../entities/email-response.entity';
+import { ResponseSyncService } from './response-sync.service';
 import { SendReplyDto } from './dto/send-reply.dto';
 
 @Controller('api/email-responses')

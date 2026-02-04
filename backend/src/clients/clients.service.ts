@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Client } from '../../entities/client.entity';
-import { ClientSendSettings } from '../../entities/client-send-settings.entity';
-import { EmailSend, EmailSendStatus } from '../../entities/email-send.entity';
+import { Client } from '../entities/client.entity';
+import { ClientSendSettings } from '../entities/client-send-settings.entity';
+import { EmailSend, EmailSendStatus } from '../entities/email-send.entity';
 import {
   CreateClientDto,
   UpdateClientDto,
@@ -11,9 +11,9 @@ import {
   UpdateEstadoDto,
   DeleteClientDto,
 } from './dto';
-import { ZohoService } from '../../zoho/zoho.service';
-import { GoogleWorkspaceService } from '../../google-workspace/google-workspace.service';
-import { JobOffer } from '../../entities/job-offer.entity';
+import { ZohoService } from '../zoho/zoho.service';
+import { GoogleWorkspaceService } from '../google-workspace/google-workspace.service';
+import { JobOffer } from '../entities/job-offer.entity';
 
 export interface ClientEmailStats {
   clientId: number;
