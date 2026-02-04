@@ -1,20 +1,21 @@
 export const getBackendUrl = () => {
-    // 1. Cliente: Siempre usa la ruta relativa o la pública definida
+    // 1. Cliente: Rutas relativas o variable pública
     if (typeof window !== 'undefined') {
         return process.env.NEXT_PUBLIC_API_URL || '/api';
     }
 
     // 2. Servidor:
 
-    // Prioridad 1: Variable explícita de backend
+    // Si hay una variable explícita, usarla (Ideal para Docker/EasyPanel)
     if (process.env.BACKEND_URL) return process.env.BACKEND_URL;
 
-    // Prioridad 2: En Producción, intentar localhost primero (mismo contenedor/pod)
-    // Esto resuelve problemas de loopback 502 en EasyPanel si el servicio es el mismo
+    // Fallback de Producción: URL Pública Absoluta
+    // Nota: Si esto da error 502 (Loopback), el usuario DEBE configurar BACKEND_URL en EasyPanel
+    // apuntando a "http://nombre-servicio:puerto/api"
     if (process.env.NODE_ENV === 'production') {
-        return 'http://127.0.0.1:4000/api';
+        return 'https://web-interna-sendmail.5k04a4.easypanel.host/api';
     }
 
-    // Fallback local dev
+    // Desarrollo local
     return 'http://localhost:3000/api';
 };
