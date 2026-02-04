@@ -15,46 +15,52 @@ interface KPIData {
 interface KPICardProps {
     title: string;
     value: string | number;
-    icon: React.ReactNode;
-    trend?: string;
-    trendDirection?: 'up' | 'down' | 'neutral';
-    color?: 'blue' | 'indigo' | 'green' | 'purple' | 'red';
-}
-
 function KPICard({ title, value, icon, trend, trendDirection = 'neutral', color }: KPICardProps) {
     const trendColors = {
-        up: 'text-emerald-600 bg-emerald-50',
-        down: 'text-red-600 bg-red-50',
-        neutral: 'text-gray-600 bg-gray-50'
+        up: 'text-emerald-600 bg-emerald-50/50 border-emerald-100',
+        down: 'text-rose-600 bg-rose-50/50 border-rose-100',
+        neutral: 'text-slate-600 bg-slate-50/50 border-slate-100'
     };
 
-    const colorStyles = {
-        blue: { icon: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
-        indigo: { icon: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100' },
-        green: { icon: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
-        purple: { icon: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100' },
-        red: { icon: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100' },
+    const icons = {
+        blue: 'text-blue-600',
+        indigo: 'text-indigo-600',
+        green: 'text-emerald-600',
+        purple: 'text-violet-600',
+        red: 'text-rose-600',
     };
 
-    const style = colorStyles[color || 'blue'];
+    const iconColor = icons[color || 'blue'];
 
     return (
-        <Card className={`hover:shadow-lg transition-all duration-300 border ${style.border} group`}>
-            <CardContent className="p-5">
-                <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                        <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">{title}</p>
-                        <h3 className="text-3xl font-black text-gray-900 tracking-tight">{value}</h3>
+        <Card className="relative overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-gray-100 bg-white group">
+            {/* Minimalist Top accent */}
+            <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-${color || 'blue'}-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity`} />
+
+            <CardContent className="p-6">
+                <div className="flex flex-col gap-4">
+                    {/* Header: Icon & Title */}
+                    <div className="flex items-center justify-between">
+                        <div className={`p-2.5 rounded-xl bg-gray-50 group-hover:bg-white group-hover:shadow-sm ring-1 ring-gray-100 transition-all duration-300 ${iconColor}`}>
+                            {icon}
+                        </div>
                         {trend && (
-                            <div className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mt-2 ${trendColors[trendDirection]}`}>
+                            <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${trendColors[trendDirection]}`}>
                                 {trendDirection === 'up' && '↑'}
                                 {trendDirection === 'down' && '↓'}
-                                <span className="ml-1">{trend}</span>
+                                <span className={trendDirection !== 'neutral' ? 'ml-1' : ''}>{trend}</span>
                             </div>
                         )}
                     </div>
-                    <div className={`p-3 rounded-xl ${style.bg} ${style.icon} group-hover:scale-110 transition-transform duration-300`}>
-                        {icon}
+
+                    {/* Value Area */}
+                    <div>
+                        <h3 className="text-3xl font-bold text-gray-900 tracking-tight leading-none group-hover:scale-105 transition-transform duration-300 origin-left">
+                            {value}
+                        </h3>
+                        <p className="text-sm font-medium text-gray-500 mt-2 tracking-wide">
+                            {title}
+                        </p>
                     </div>
                 </div>
             </CardContent>
