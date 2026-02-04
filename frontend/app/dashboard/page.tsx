@@ -21,14 +21,14 @@ export default function DashboardPage() {
 
                 {/* Main Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                    {/* Pipeline - takes 2 columns */}
+                    {/* Notifications - takes 2 columns (Most Important) */}
                     <div className="lg:col-span-2">
-                        <ClientPipeline />
+                        <WorkflowNotifications />
                     </div>
 
-                    {/* Notifications - takes 1 column */}
+                    {/* Pipeline - takes 1 column */}
                     <div className="lg:col-span-1">
-                        <WorkflowNotifications />
+                        <ClientPipeline />
                     </div>
                 </div>
 

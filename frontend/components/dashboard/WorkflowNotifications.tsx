@@ -71,26 +71,35 @@ export default function WorkflowNotifications() {
 
     async function fetchNotifications() {
         try {
+            const fetchWithTimeout = (url: string, ms = 5000) => {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), ms);
+                return fetch(url, { signal: controller.signal })
+                    .then(res => { clearTimeout(timeoutId); return res; })
+                    .catch(err => { clearTimeout(timeoutId); throw err; });
+            };
+
             const [notifResponse, countResponse] = await Promise.all([
-                fetch('/api/notifications?limit=20'),
-                fetch('/api/notifications/unread/count')
+                fetchWithTimeout('/api/notifications?limit=20'),
+                fetchWithTimeout('/api/notifications/unread/count')
             ]);
+
+            if (!notifResponse.ok) throw new Error(`Status ${notifResponse.status}`);
+
             const notifData = await notifResponse.json();
-            const countData = await countResponse.json();
+            const countData = await countResponse.json().catch(() => ({ count: 0 }));
+
             setNotifications(notifData.notifications || []);
             setUnreadCount(countData.count || 0);
         } catch (error) {
             console.error('Error fetching notifications:', error);
-
-            // Try to get response details if available
-            if (error instanceof Error && error.message.includes('Backend')) {
-                // This was thrown by our proxy
-                console.error('Backend Details:', error.message);
+            // Don't clear notifications on transient error, just stop loading
+            if (loading) {
+                setNotifications([]);
             }
-
-            setNotifications([]);
-            setUnreadCount(0);
-        } finally { }
+        } finally {
+            setLoading(false);
+        }
     }
 
     async function markAsRead(id: number) {
