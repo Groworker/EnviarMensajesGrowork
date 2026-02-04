@@ -21,6 +21,9 @@ async function bootstrap() {
   // Enable global exception filter
   app.useGlobalFilters(new AllExceptionsFilter());
 
+  // Enable global prefix
+  app.setGlobalPrefix('api');
+
   // Enable global logging interceptor
   app.useGlobalInterceptors(new LoggingInterceptor());
 
