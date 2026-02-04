@@ -55,7 +55,7 @@ export default function WorkflowNotifications() {
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
-    const [filter, setFilter] = useState<'all' | 'unread'>('all');
+    const [filter, setFilter] = useState<'all' | 'unread' | 'archived'>('all'); // Added 'archived'
     const [processingId, setProcessingId] = useState<number | null>(null);
 
     const toggleExpand = (id: number, e: React.MouseEvent) => {
@@ -72,7 +72,7 @@ export default function WorkflowNotifications() {
         fetchNotifications();
         const interval = setInterval(fetchNotifications, 30000);
         return () => clearInterval(interval);
-    }, []);
+    }, [filter]); // Re-fetch when filter changes
 
     async function fetchNotifications() {
         try {
@@ -84,8 +84,11 @@ export default function WorkflowNotifications() {
                     .catch(err => { clearTimeout(timeoutId); throw err; });
             };
 
+            // Determine query param based on filter
+            const filterParam = filter === 'archived' ? 'archived' : 'all';
+
             const [notifResponse, countResponse] = await Promise.all([
-                fetchWithTimeout('/api/notifications?limit=50'),
+                fetchWithTimeout(`/api/notifications?limit=50&filter=${filterParam}`), // Pass filter param
                 fetchWithTimeout('/api/notifications/unread/count')
             ]);
 
@@ -166,17 +169,17 @@ export default function WorkflowNotifications() {
         e.stopPropagation();
         setProcessingId(id);
 
-        // Optimistic delete
+        // Optimistic delete (archive)
         const previousNotifications = [...notifications];
-        setNotifications(prev => prev.filter(n => n.id !== id));
+        setNotifications(prev => prev.filter(n => n.id !== id)); // Remove from view immediately
         if (notifications.find(n => n.id === id && !n.isRead)) {
             setUnreadCount(prev => Math.max(0, prev - 1));
         }
 
         try {
-            await fetch(`/api/notifications/${id}`, { method: 'DELETE' });
+            await fetch(`/api/notifications/${id}`, { method: 'DELETE' }); // Now archives
         } catch (error) {
-            console.error('Error deleting notification:', error);
+            console.error('Error archiving notification:', error);
             setNotifications(previousNotifications);
             fetchNotifications(); // Re-sync count
         } finally {
@@ -184,9 +187,30 @@ export default function WorkflowNotifications() {
         }
     }
 
-    const filteredNotifications = filter === 'all'
-        ? notifications
-        : notifications.filter(n => !n.isRead);
+    async function handleRestore(id: number, e: React.MouseEvent) {
+        e.stopPropagation();
+        setProcessingId(id);
+
+        // Optimistic restore (remove from archived view)
+        const previousNotifications = [...notifications];
+        setNotifications(prev => prev.filter(n => n.id !== id));
+
+        try {
+            await fetch(`/api/notifications/${id}/restore`, { method: 'PATCH' });
+        } catch (error) {
+            console.error('Error restoring notification:', error);
+            setNotifications(previousNotifications);
+            fetchNotifications();
+        } finally {
+            setProcessingId(null);
+        }
+    }
+
+    // Client-side filtering only for "unread" tab within the "active" fetched set
+    // For "archived", the set is already filtered by API.
+    const filteredNotifications = filter === 'unread'
+        ? notifications.filter(n => !n.isRead)
+        : notifications;
 
     const getSeverityStyles = (severity: string) => {
         switch (severity) {
@@ -328,8 +352,8 @@ export default function WorkflowNotifications() {
                             <button
                                 onClick={() => setFilter('all')}
                                 className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${filter === 'all'
-                                        ? 'bg-white text-gray-900 shadow-sm'
-                                        : 'text-gray-500 hover:text-gray-700'
+                                    ? 'bg-white text-gray-900 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700'
                                     }`}
                             >
                                 Todas
@@ -337,8 +361,8 @@ export default function WorkflowNotifications() {
                             <button
                                 onClick={() => setFilter('unread')}
                                 className={`px-3 py-1 text-xs font-medium rounded-md transition-all flex items-center gap-1 ${filter === 'unread'
-                                        ? 'bg-white text-gray-900 shadow-sm'
-                                        : 'text-gray-500 hover:text-gray-700'
+                                    ? 'bg-white text-gray-900 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700'
                                     }`}
                             >
                                 No leídas
@@ -348,11 +372,20 @@ export default function WorkflowNotifications() {
                                     </span>
                                 )}
                             </button>
+                            <button
+                                onClick={() => setFilter('archived')}
+                                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${filter === 'archived'
+                                    ? 'bg-white text-gray-900 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700'
+                                    }`}
+                            >
+                                Archivadas
+                            </button>
                         </div>
                     </div>
 
                     {/* Bulk Actions */}
-                    {unreadCount > 0 && (
+                    {unreadCount > 0 && filter !== 'archived' && (
                         <button
                             onClick={handleMarkAllRead}
                             className="text-xs text-blue-600 hover:text-blue-800 font-medium hover:underline flex items-center gap-1 transition-colors"
@@ -372,18 +405,22 @@ export default function WorkflowNotifications() {
                             </div>
                             <h3 className="text-sm font-medium text-gray-900">Sin notificaciones</h3>
                             <p className="text-gray-500 text-xs mt-1">
-                                {filter === 'unread' ? '¡Estás al día! No tienes mensajes sin leer.' : 'No hay historial de notificaciones.'}
+                                {filter === 'unread'
+                                    ? '¡Estás al día! No tienes mensajes sin leer.'
+                                    : filter === 'archived'
+                                        ? 'No hay notificaciones archivadas.'
+                                        : 'No hay historial de notificaciones.'}
                             </p>
                         </div>
                     ) : (
                         filteredNotifications.map((notification) => (
                             <div
                                 key={notification.id}
-                                onClick={() => !notification.isRead && handleMarkAllRead()} // Careful, this marks ALL? No, individual handled by item hover or click
+                                onClick={() => filter !== 'archived' && !notification.isRead && handleMarkAllRead()}
                                 className={`
                                     relative p-4 rounded-xl border-l-[3px] transition-all duration-200 
                                     ${getSeverityStyles(notification.severity)}
-                                    ${notification.isRead ? 'opacity-70 bg-opacity-40 border-l-gray-300 bg-gray-50' : 'shadow-sm translate-x-1 bg-white'}
+                                    ${notification.isRead || filter === 'archived' ? 'opacity-70 bg-opacity-40 border-l-gray-300 bg-gray-50' : 'shadow-sm translate-x-1 bg-white'}
                                     group hover:shadow-md hover:translate-x-1 hover:opacity-100
                                 `}
                             >
@@ -411,22 +448,40 @@ export default function WorkflowNotifications() {
 
                                     {/* Action Buttons (Visible on Hover) */}
                                     <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute top-2 right-2 bg-white/80 p-1 rounded-lg backdrop-blur-sm shadow-sm">
-                                        {!notification.isRead && (
+
+                                        {/* Actions for Active Notifications */}
+                                        {filter !== 'archived' && (
+                                            <>
+                                                {!notification.isRead && (
+                                                    <button
+                                                        onClick={(e) => handleToggleRead(notification.id, notification.isRead, e)}
+                                                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                                        title="Marcar como leída"
+                                                    >
+                                                        <Check className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={(e) => handleDelete(notification.id, e)}
+                                                    className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                                    title="Archivar"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </>
+                                        )}
+
+                                        {/* Actions for Archived Notifications */}
+                                        {filter === 'archived' && (
                                             <button
-                                                onClick={(e) => handleToggleRead(notification.id, notification.isRead, e)}
-                                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                                                title="Marcar como leída"
+                                                onClick={(e) => handleRestore(notification.id, e)}
+                                                className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
+                                                title="Restaurar"
                                             >
-                                                <Check className="w-4 h-4" />
+                                                <CheckCircle2 className="w-4 h-4" />
                                             </button>
                                         )}
-                                        <button
-                                            onClick={(e) => handleDelete(notification.id, e)}
-                                            className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                                            title="Eliminar"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
+
                                         <button
                                             onClick={(e) => toggleExpand(notification.id, e)}
                                             className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
