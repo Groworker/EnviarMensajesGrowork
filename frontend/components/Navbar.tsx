@@ -12,7 +12,8 @@ export default function Navbar() {
     const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
 
     const navItems = [
-        { href: '/', label: 'Dashboard' },
+        { href: '/', label: 'Panel de Control' },
+        { href: '/dashboard', label: 'Admin Dashboard' },
         { href: '/clients', label: 'Clientes' },
         { href: '/preview-emails', label: 'Preview Emails' },
         { href: '/responses', label: 'Respuestas' },
