@@ -9,6 +9,7 @@ import { EmailResponse } from '../entities/email-response.entity';
 import { Client } from '../entities/client.entity';
 import { GlobalSendConfig } from '../entities/global-send-config.entity';
 import { AiModule } from '../ai/ai.module';
+import { DriveModule } from '../drive/drive.module';
 import { EmailPreviewController } from './email-preview.controller';
 import { EmailResponsesController } from './email-responses.controller';
 import { GlobalConfigController } from './global-config.controller';
@@ -21,6 +22,7 @@ import { GlobalConfigService } from './global-config.service';
     ConfigModule,
     TypeOrmModule.forFeature([EmailSend, EmailResponse, Client, GlobalSendConfig]),
     forwardRef(() => AiModule),
+    DriveModule,
   ],
   controllers: [EmailPreviewController, EmailResponsesController, GlobalConfigController],
   providers: [
