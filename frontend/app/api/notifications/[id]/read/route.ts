@@ -4,10 +4,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params;
+
     try {
-        const response = await fetch(`${API_URL}/notifications/${params.id}/read`, {
+        const response = await fetch(`${API_URL}/notifications/${id}/read`, {
             method: 'PATCH',
             cache: 'no-store'
         });
