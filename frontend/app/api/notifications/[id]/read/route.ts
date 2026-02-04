@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getBackendUrl } from '../../../../../../lib/api-config';
+import { getBackendUrl } from '../../../../../lib/api-config';
 
 export async function PATCH(
     request: NextRequest,
