@@ -102,8 +102,8 @@ export default function EmailStatsChart() {
                             <YAxis />
                             <Tooltip
                                 labelFormatter={(value) => new Date(value).toLocaleDateString('es-ES')}
-                                formatter={(value: number | undefined, name: string) => {
-                                    if (value === undefined) return [0, name];
+                                formatter={(value: number | undefined, name: string | undefined) => {
+                                    if (value === undefined || name === undefined) return [0, ''];
                                     const labels: Record<string, string> = {
                                         success: 'Exitosos',
                                         failed: 'Fallidos',
