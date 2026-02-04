@@ -87,7 +87,7 @@ export default function ClientPipeline() {
                                     <Cell key={`cell-${index}`} fill={ESTADO_COLORS[entry.name] || '#6b7280'} />
                                 ))}
                             </Pie>
-                            <Tooltip formatter={(value: number) => [`${value} clientes`, 'Cantidad']} />
+                            <Tooltip formatter={(value: number | undefined) => value ? [`${value} clientes`, 'Cantidad'] : ['0 clientes', 'Cantidad']} />
                             <Legend />
                         </PieChart>
                     </ResponsiveContainer>

@@ -10,100 +10,93 @@ import { NotificationsService } from '../notifications/notifications.service';
 export class ClientDeletionService {
     private readonly logger = new Logger(ClientDeletionService.name);
 
-    // Thresholds in days
-    private readonly DAYS_CLOSED_THRESHOLD = 7;
-    private readonly DAYS_NO_EMAILS_THRESHOLD = 14;
-
     constructor(
         @InjectRepository(Client)
-        private clientsRepository: Repository<Client>,
+        private readonly clientsRepository: Repository<Client>,
         @InjectRepository(DeletionLog)
-        private deletionLogsRepository: Repository<DeletionLog>,
-        private notificationsService: NotificationsService,
+        private readonly deletionLogsRepository: Repository<DeletionLog>,
+        private readonly notificationsService: NotificationsService,
     ) { }
 
     /**
-     * Runs daily at 3:00 AM to check and delete eligible clients
+     * Cron job that runs daily at 2 AM to check and delete eligible clients
      */
-    @Cron(CronExpression.EVERY_DAY_AT_3AM)
+    @Cron(CronExpression.EVERY_DAY_AT_2AM)
     async handleAutoDeletion() {
-        this.logger.log('Starting automatic client deletion check...');
+        this.logger.log('Running automatic client deletion check...');
 
         try {
             const eligibleClients = await this.findEligibleForDeletion();
+
             this.logger.log(`Found ${eligibleClients.length} clients eligible for deletion`);
 
-            let deletedCount = 0;
             for (const client of eligibleClients) {
-                try {
-                    await this.deleteClient(client.id, true);
-                    deletedCount++;
-                } catch (error) {
-                    this.logger.error(
-                        `Failed to delete client ${client.id}: ${error.message}`,
-                    );
-                }
+                await this.deleteClient(client.id, {
+                    reason: client.deletionReason,
+                    isAutomatic: true,
+                });
             }
 
-            this.logger.log(
-                `Automatic deletion completed. Deleted ${deletedCount}/${eligibleClients.length} clients`,
-            );
+            this.logger.log(`Auto-deletion complete. Deleted ${eligibleClients.length} clients.`);
         } catch (error) {
-            this.logger.error(`Auto-deletion job failed: ${error.message}`);
+            this.logger.error(`Error during auto-deletion: ${error.message}`, error.stack);
         }
     }
 
     /**
-     * Find clients eligible for automatic deletion based on business rules:
-     * - Estado "Cerrado" for >= 7 days, OR
-     * - No emails sent in >= 14 days
+     * Find clients eligible for automatic deletion based on business rules
      */
-    async findEligibleForDeletion(): Promise<Client[]> {
+    async findEligibleForDeletion(): Promise<Array<Client & { deletionReason: string }>> {
         const now = new Date();
-        const closedThreshold = new Date(
-            now.getTime() - this.DAYS_CLOSED_THRESHOLD * 24 * 60 * 60 * 1000,
-        );
-        const emailThreshold = new Date(
-            now.getTime() - this.DAYS_NO_EMAILS_THRESHOLD * 24 * 60 * 60 * 1000,
-        );
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
-        // Find clients that are "Cerrado" for >= 7 days
-        const closedClients = await this.clientsRepository.find({
-            where: {
-                estado: 'Cerrado',
-                estadoChangedAt: LessThan(closedThreshold),
-                deletedAt: IsNull(),
-            },
-        });
+        // Find clients in "Cerrado" state for more than 7 days
+        const closedClients = await this.clientsRepository
+            .createQueryBuilder('client')
+            .where('client.estado = :estado', { estado: 'Cerrado' })
+            .andWhere('client.estadoChangedAt <= :sevenDaysAgo', { sevenDaysAgo })
+            .andWhere('client.deletedAt IS NULL')
+            .getMany();
 
-        // Find clients with no emails sent in >= 14 days
-        const inactiveClients = await this.clientsRepository.find({
-            where: {
-                lastEmailSentAt: LessThan(emailThreshold),
-                deletedAt: IsNull(),
-            },
-        });
+        // Find clients with no emails sent in the last 14 days
+        const inactiveClients = await this.clientsRepository
+            .createQueryBuilder('client')
+            .where('client.lastEmailSentAt <= :fourteenDaysAgo', { fourteenDaysAgo })
+            .orWhere('client.lastEmailSentAt IS NULL')
+            .andWhere('client.createdAt <= :fourteenDaysAgo', { fourteenDaysAgo })
+            .andWhere('client.deletedAt IS NULL')
+            .andWhere('client.estado != :estado', { estado: 'Cerrado' }) // Don't duplicate closed clients
+            .getMany();
 
-        // Combine and deduplicate by ID
-        const allEligible = [...closedClients, ...inactiveClients];
-        const uniqueClients = Array.from(
-            new Map(allEligible.map((c) => [c.id, c])).values(),
-        );
+        // Combine and add deletion reasons
+        const eligible = [
+            ...closedClients.map(c => ({
+                ...c,
+                deletionReason: 'Cliente cerrado por más de 7 días'
+            })),
+            ...inactiveClients.map(c => ({
+                ...c,
+                deletionReason: 'Sin actividad de emails por más de 14 días'
+            }))
+        ];
 
-        return uniqueClients;
+        return eligible;
     }
 
     /**
-     * Delete a client (soft delete) and create an audit log
+     * Delete a client (soft delete) and create audit log
      */
     async deleteClient(
         clientId: number,
-        isAutomatic = false,
-        reason?: string,
-        deletedBy?: string,
+        options: {
+            reason?: string;
+            isAutomatic?: boolean;
+            deletedBy?: string;
+        } = {}
     ): Promise<void> {
         const client = await this.clientsRepository.findOne({
-            where: { id: clientId },
+            where: { id: clientId }
         });
 
         if (!client) {
@@ -114,39 +107,21 @@ export class ClientDeletionService {
             throw new Error(`Client with ID ${clientId} is already deleted`);
         }
 
-        // Calculate days since closed and last email
+        const { reason: deletionReason, isAutomatic = false, deletedBy } = options;
+
+        // Calculate metrics
         const now = new Date();
         let daysSinceClosed: number | null = null;
         let daysSinceLastEmail: number | null = null;
 
-        if (client.estadoChangedAt && client.estado === 'Cerrado') {
-            daysSinceClosed = Math.floor(
-                (now.getTime() - client.estadoChangedAt.getTime()) /
-                (24 * 60 * 60 * 1000),
-            );
+        if (client.estado === 'Cerrado' && client.estadoChangedAt) {
+            const diff = now.getTime() - client.estadoChangedAt.getTime();
+            daysSinceClosed = Math.floor(diff / (1000 * 60 * 60 * 24));
         }
 
         if (client.lastEmailSentAt) {
-            daysSinceLastEmail = Math.floor(
-                (now.getTime() - client.lastEmailSentAt.getTime()) /
-                (24 * 60 * 60 * 1000),
-            );
-        }
-
-        // Generate automatic deletion reason
-        let deletionReason = reason;
-        if (isAutomatic && !deletionReason) {
-            const reasons: string[] = [];
-            if (daysSinceClosed && daysSinceClosed >= this.DAYS_CLOSED_THRESHOLD) {
-                reasons.push(`Estado "Cerrado" durante ${daysSinceClosed} días`);
-            }
-            if (
-                daysSinceLastEmail &&
-                daysSinceLastEmail >= this.DAYS_NO_EMAILS_THRESHOLD
-            ) {
-                reasons.push(`Sin emails enviados durante ${daysSinceLastEmail} días`);
-            }
-            deletionReason = reasons.join(', ');
+            const diff = now.getTime() - client.lastEmailSentAt.getTime();
+            daysSinceLastEmail = Math.floor(diff / (1000 * 60 * 60 * 24));
         }
 
         // Soft delete the client
@@ -154,18 +129,17 @@ export class ClientDeletionService {
         client.deletionReason = deletionReason || 'Eliminación automática';
         await this.clientsRepository.save(client);
 
-        // Create deletion log
-        const deletionLog = this.deletionLogsRepository.create({
-            clientId: client.id,
-            clientName: `${client.nombre || ''} ${client.apellido || ''}`.trim(),
-            clientEmail: client.email,
-            deletionReason,
-            wasAutomatic: isAutomatic,
-            daysSinceClosed,
-            daysSinceLastEmail,
-            deletedBy: deletedBy || (isAutomatic ? 'SYSTEM' : null),
-            deletedAt: now,
-        });
+        // Create deletion log - Create entity instance properly
+        const deletionLog = new DeletionLog();
+        deletionLog.clientId = client.id;
+        deletionLog.clientName = `${client.nombre || ''} ${client.apellido || ''}`.trim();
+        deletionLog.clientEmail = client.email;
+        deletionLog.deletionReason = deletionReason;
+        deletionLog.wasAutomatic = isAutomatic;
+        deletionLog.daysSinceClosed = daysSinceClosed;
+        deletionLog.daysSinceLastEmail = daysSinceLastEmail;
+        deletionLog.deletedBy = deletedBy || (isAutomatic ? 'SYSTEM' : null);
+
         await this.deletionLogsRepository.save(deletionLog);
 
         // Create notification
@@ -176,37 +150,64 @@ export class ClientDeletionService {
         );
 
         this.logger.log(
-            `Client ${client.id} (${client.nombre} ${client.apellido}) deleted. Automatic: ${isAutomatic}`,
+            `Client ${clientId} deleted. Reason: ${deletionReason}. Auto: ${isAutomatic}`
         );
     }
 
     /**
      * Get deletion statistics
      */
-    async getDeletionStats(): Promise<{
+    async getDeletionStats(days = 30): Promise<{
         totalDeleted: number;
         automaticDeleted: number;
         manualDeleted: number;
         recentDeletions: DeletionLog[];
     }> {
-        const totalDeleted = await this.deletionLogsRepository.count();
-        const automaticDeleted = await this.deletionLogsRepository.count({
-            where: { wasAutomatic: true },
-        });
-        const manualDeleted = await this.deletionLogsRepository.count({
-            where: { wasAutomatic: false },
-        });
+        const since = new Date();
+        since.setDate(since.getDate() - days);
 
-        const recentDeletions = await this.deletionLogsRepository.find({
-            order: { deletedAt: 'DESC' },
+        const allDeletions = await this.deletionLogsRepository.find({
+            where: {
+                deletedAt: LessThan(since),
+            },
+            order: {
+                deletedAt: 'DESC',
+            },
             take: 10,
         });
+
+        const totalDeleted = allDeletions.length;
+        const automaticDeleted = allDeletions.filter(d => d.wasAutomatic).length;
 
         return {
             totalDeleted,
             automaticDeleted,
-            manualDeleted,
-            recentDeletions,
+            manualDeleted: totalDeleted - automaticDeleted,
+            recentDeletions: allDeletions.slice(0, 5),
         };
+    }
+
+    /**
+     * Restore a deleted client
+     */
+    async restoreClient(clientId: number): Promise<void> {
+        const client = await this.clientsRepository.findOne({
+            where: { id: clientId },
+            withDeleted: true,
+        });
+
+        if (!client) {
+            throw new Error(`Client with ID ${clientId} not found`);
+        }
+
+        if (!client.deletedAt) {
+            throw new Error(`Client with ID ${clientId} is not deleted`);
+        }
+
+        client.deletedAt = null;
+        client.deletionReason = null;
+        await this.clientsRepository.save(client);
+
+        this.logger.log(`Client ${clientId} restored`);
     }
 }

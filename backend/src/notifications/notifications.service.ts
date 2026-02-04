@@ -62,7 +62,7 @@ export class NotificationsService {
         });
     }
 
-    async markAsRead(id: number): Promise<Notification> {
+    async markAsRead(id: number): Promise<Notification | null> {
         await this.notificationsRepository.update(id, { isRead: true });
         return this.notificationsRepository.findOne({ where: { id } });
     }

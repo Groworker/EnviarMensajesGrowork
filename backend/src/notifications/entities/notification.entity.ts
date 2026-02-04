@@ -6,7 +6,7 @@ import {
     ManyToOne,
     JoinColumn,
 } from 'typeorm';
-import { Client } from '../../clients/entities/client.entity';
+import { Client } from '../../entities/client.entity';
 
 export enum NotificationType {
     WORKFLOW_WKF1 = 'workflow_wkf1',
