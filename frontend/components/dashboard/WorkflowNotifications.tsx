@@ -249,15 +249,50 @@ export default function WorkflowNotifications() {
                 )}
 
                 {/* Dynamic Metadata Grid */}
-                <div className="grid grid-cols-1 gap-2">
-                    {/* Creator Assigned */}
+                <div className="grid grid-cols-1 gap-3">
+                    {/* Creator Assigned Section */}
                     {meta.creador_nombre && (
-                        <div className="flex items-center gap-2 text-gray-700">
-                            <div className="bg-purple-50 p-1 rounded">
-                                <FileText className="w-3 h-3 text-purple-600" />
+                        <div className="bg-purple-50/50 p-2.5 rounded-md border border-purple-100 flex flex-col gap-1.5">
+                            <div className="flex items-center gap-2 text-gray-800">
+                                <div className="bg-white p-1 rounded shadow-sm">
+                                    <FileText className="w-3.5 h-3.5 text-purple-600" />
+                                </div>
+                                <span className="font-semibold text-xs text-purple-900">CREADOR ASIGNADO</span>
                             </div>
-                            <span className="text-xs text-gray-500">Asignado a:</span>
-                            <span className="font-medium">{meta.creador_nombre}</span>
+
+                            <div className="pl-1 space-y-1">
+                                <div className="text-sm font-medium text-gray-900">{meta.creador_nombre}</div>
+                                {meta.creador_email && (
+                                    <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                                        <Mail className="w-3 h-3 text-purple-400" />
+                                        <span>{meta.creador_email}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Shared Folders Status */}
+                    {(meta.carpeta_old_compartida || meta.carpeta_new_compartida) && (
+                        <div className="flex items-center gap-2 text-gray-700 bg-blue-50/30 p-2 rounded-md border border-blue-100/50">
+                            <div className="bg-blue-100 p-1 rounded">
+                                <Folder className="w-3 h-3 text-blue-600" />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-xs font-semibold text-blue-800">CARPETAS COMPARTIDAS</span>
+                                <div className="flex gap-2 text-[10px] mt-0.5">
+                                    {meta.carpeta_old_compartida && (
+                                        <span className="bg-blue-200/50 text-blue-800 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                            <CheckCircle2 className="w-2.5 h-2.5" /> OLD
+                                        </span>
+                                    )}
+                                    {meta.carpeta_new_compartida && (
+                                        <span className="bg-blue-200/50 text-blue-800 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                            <CheckCircle2 className="w-2.5 h-2.5" /> NEW
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     )}
 
@@ -273,7 +308,7 @@ export default function WorkflowNotifications() {
                     )}
                 </div>
 
-                {/* Email Details */}
+                {/* Email Details (Corporativo) */}
                 {(meta.email_operativo || meta.email_destino) && (
                     <div className="bg-blue-50/30 p-2 rounded border border-blue-100/50 space-y-1">
                         {meta.email_destino && (

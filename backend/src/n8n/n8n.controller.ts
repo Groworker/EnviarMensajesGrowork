@@ -86,18 +86,18 @@ export class N8nController {
     private buildMessage(payload: N8nWebhookPayload): string {
         const messages: Record<string, (p: N8nWebhookPayload) => string> = {
             'carpetas_y_cv_creados': (p) =>
-                `Carpetas y estructura CV creadas para ${p.clientName || 'cliente'}`,
+                `Se han generado correctamente las carpetas en Google Drive y la estructura del CV para el cliente.`,
             'creador_asignado': (p) =>
-                `Creador ${p.data?.creador_nombre} asignado a ${p.clientName || 'cliente'}`,
+                `Las carpetas del cliente en Google Drive han sido compartidas correctamente con el creador de CV asignado (${p.data?.creador_nombre}). A partir de este momento, podrá acceder a los archivos y comenzar el proceso.`,
             'nuevo_archivo_detectado': (p) =>
-                `Nuevo archivo "${p.data?.archivo_nombre}" detectado en carpeta NEW de ${p.clientName || 'cliente'}`,
+                `Se ha detectado un nuevo archivo "${p.data?.archivo_nombre}" en la carpeta NEW. El sistema procederá a procesarlo.`,
             'cv_movido_a_definitiva': (p) =>
-                `CV "${p.data?.cv_archivo_nombre}" movido a carpeta DEFINITIVA de ${p.clientName || 'cliente'}`,
+                `El CV final "${p.data?.cv_archivo_nombre}" ha sido aprobado y movido a la carpeta DEFINITIVA.`,
             'email_corporativo_creado': (p) =>
-                `Email corporativo ${p.data?.email_operativo} creado para ${p.clientName || 'cliente'}`,
+                `Se ha configurado con éxito la cuenta de correo corporativo ${p.data?.email_operativo}. Las credenciales han sido guardadas.`,
         };
 
         const messageBuilder = messages[payload.event];
-        return messageBuilder ? messageBuilder(payload) : `Evento ${payload.event} ejecutado`;
+        return messageBuilder ? messageBuilder(payload) : `Evento ${payload.event} ejecutado para ${payload.clientName || 'cliente'}`;
     }
 }
