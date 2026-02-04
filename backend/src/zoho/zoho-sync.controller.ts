@@ -15,11 +15,11 @@ interface SyncResponse {
   skipped: number;
 }
 
-@Controller('api/zoho-sync')
+@Controller('zoho-sync')
 export class ZohoSyncController {
   private readonly logger = new Logger(ZohoSyncController.name);
 
-  constructor(private readonly zohoSyncService: ZohoSyncService) {}
+  constructor(private readonly zohoSyncService: ZohoSyncService) { }
 
   /**
    * Get sync status
