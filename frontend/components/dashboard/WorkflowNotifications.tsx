@@ -61,10 +61,12 @@ export default function WorkflowNotifications() {
                 const notifData = await notifResponse.json();
                 const countData = await countResponse.json();
 
-                setNotifications(notifData.notifications);
-                setUnreadCount(countData.count);
+                setNotifications(notifData.notifications || []);
+                setUnreadCount(countData.count || 0);
             } catch (error) {
                 console.error('Error fetching notifications:', error);
+                setNotifications([]);
+                setUnreadCount(0);
             } finally {
                 setLoading(false);
             }

@@ -1,22 +1,23 @@
 export const getBackendUrl = () => {
-    // Si estamos en el cliente, devolver la variable pública o relativa
+    // 1. Cliente: Usar la variable pública o relativa
     if (typeof window !== 'undefined') {
         return process.env.NEXT_PUBLIC_API_URL || '/api';
     }
 
-    // Si estamos en el servidor:
+    // 2. Servidor: 
 
-    // 1. Si hay una URL interna explícita (Docker network), usarla
+    // Si hay una URL interna explícita (para Docker networking)
     if (process.env.BACKEND_URL) return process.env.BACKEND_URL;
 
-    // 2. Si la variable pública es una URL absoluta, usarla
+    // Si la pública es absoluta, usarla
     const publicUrl = process.env.NEXT_PUBLIC_API_URL;
     if (publicUrl?.startsWith('http')) return publicUrl;
 
-    // 3. Fallback: URL pública conocida de producción o localhost
+    // FALLBACK DE PRODUCCIÓN: Usar la URL pública confirmada por el usuario
     if (process.env.NODE_ENV === 'production') {
         return 'https://web-interna-sendmail.5k04a4.easypanel.host/api';
     }
 
+    // Fallback local
     return 'http://localhost:3000/api';
 };

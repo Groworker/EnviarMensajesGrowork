@@ -56,9 +56,23 @@ export default function KPICards() {
             try {
                 const response = await fetch('/api/dashboard/kpis');
                 const data = await response.json();
-                setKpis(data.kpis);
+                setKpis(data.kpis || {
+                    activeClients: 0,
+                    totalEmailsSent: 0,
+                    emailSuccessRate: 0,
+                    unreadNotifications: 0,
+                    recentDeletions: 0
+                });
             } catch (error) {
                 console.error('Error fetching KPIs:', error);
+                // Set default values on error to prevent crash
+                setKpis({
+                    activeClients: 0,
+                    totalEmailsSent: 0,
+                    emailSuccessRate: 0,
+                    unreadNotifications: 0,
+                    recentDeletions: 0
+                });
             } finally {
                 setLoading(false);
             }
