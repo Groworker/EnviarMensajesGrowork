@@ -14,7 +14,6 @@ import { EmailResponse } from './entities/email-response.entity';
 import { GlobalSendConfig } from './entities/global-send-config.entity';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { WorkerModule } from './worker/worker.module';
-import { ApiModule } from './api/api.module';
 import { EmailModule } from './email/email.module';
 import { ZohoModule } from './zoho/zoho.module';
 import { AiModule } from './ai/ai.module';
@@ -68,7 +67,6 @@ import { envValidationSchema } from './config/env.validation';
     }),
     SchedulerModule,
     WorkerModule,
-    ApiModule,
     EmailModule,
     ZohoModule,
     AiModule,

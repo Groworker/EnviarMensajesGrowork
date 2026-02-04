@@ -7,12 +7,12 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { EmailSend, EmailSendStatus } from '../../entities/email-send.entity';
-import { EmailService } from '../../email/email.service';
-import { AiService } from '../../ai/ai.service';
-import { DriveService } from '../../drive/drive.service';
+import { EmailSend, EmailSendStatus } from '../entities/email-send.entity';
+import { EmailService } from './email.service';
+import { AiService } from '../ai/ai.service';
+import { DriveService } from '../drive/drive.service';
 import { UpdateEmailDto } from './dto/update-email.dto';
-import { EmailAttachment } from '../../drive/interfaces/drive-file.interface';
+import { EmailAttachment } from '../drive/interfaces/drive-file.interface';
 
 @Injectable()
 export class EmailPreviewService {
@@ -25,7 +25,7 @@ export class EmailPreviewService {
     private aiService: AiService,
     private driveService: DriveService,
     private configService: ConfigService,
-  ) {}
+  ) { }
 
   /**
    * Get all emails pending review, optionally filtered by client

@@ -9,7 +9,6 @@ import { JobOffer } from '../entities/job-offer.entity';
 import { EmailSend } from '../entities/email-send.entity';
 import { ClientSendSettings } from '../entities/client-send-settings.entity';
 import { EmailReputation } from '../entities/email-reputation.entity';
-import { GlobalConfigModule } from '../api/global-config/global-config.module';
 
 @Module({
   imports: [
@@ -23,7 +22,6 @@ import { GlobalConfigModule } from '../api/global-config/global-config.module';
     EmailModule,
     AiModule,
     DriveModule,
-    GlobalConfigModule,
   ],
   providers: [WorkerService],
 })
