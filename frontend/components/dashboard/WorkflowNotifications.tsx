@@ -81,9 +81,16 @@ export default function WorkflowNotifications() {
             setUnreadCount(countData.count || 0);
         } catch (error) {
             console.error('Error fetching notifications:', error);
-        } finally {
-            setLoading(false);
-        }
+
+            // Try to get response details if available
+            if (error instanceof Error && error.message.includes('Backend')) {
+                // This was thrown by our proxy
+                console.error('Backend Details:', error.message);
+            }
+
+            setNotifications([]);
+            setUnreadCount(0);
+        } finally { }
     }
 
     async function markAsRead(id: number) {

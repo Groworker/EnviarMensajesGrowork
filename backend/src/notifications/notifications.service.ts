@@ -40,20 +40,20 @@ export class NotificationsService {
     }
 
     async findAll(limit = 50, offset = 0): Promise<Notification[]> {
-        return this.notificationsRepository.find({
-            order: { createdAt: 'DESC' },
-            take: limit,
-            skip: offset,
-            relations: ['relatedClient'],
-        });
+        return this.notificationsRepository.createQueryBuilder('notification')
+            .leftJoinAndSelect('notification.relatedClient', 'client')
+            .orderBy('notification.createdAt', 'DESC')
+            .take(limit)
+            .skip(offset)
+            .getMany();
     }
 
     async findUnread(): Promise<Notification[]> {
-        return this.notificationsRepository.find({
-            where: { isRead: false },
-            order: { createdAt: 'DESC' },
-            relations: ['relatedClient'],
-        });
+        return this.notificationsRepository.createQueryBuilder('notification')
+            .leftJoinAndSelect('notification.relatedClient', 'client')
+            .where('notification.isRead = :isRead', { isRead: false })
+            .orderBy('notification.createdAt', 'DESC')
+            .getMany();
     }
 
     async countUnread(): Promise<number> {
