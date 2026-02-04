@@ -134,11 +134,11 @@ export class ClientDeletionService {
         deletionLog.clientId = client.id;
         deletionLog.clientName = `${client.nombre || ''} ${client.apellido || ''}`.trim();
         deletionLog.clientEmail = client.email;
-        deletionLog.deletionReason = deletionReason;
+        deletionLog.deletionReason = deletionReason || '';
         deletionLog.wasAutomatic = isAutomatic;
-        deletionLog.daysSinceClosed = daysSinceClosed;
-        deletionLog.daysSinceLastEmail = daysSinceLastEmail;
-        deletionLog.deletedBy = deletedBy || (isAutomatic ? 'SYSTEM' : null);
+        deletionLog.daysSinceClosed = daysSinceClosed ?? 0;
+        deletionLog.daysSinceLastEmail = daysSinceLastEmail ?? 0;
+        deletionLog.deletedBy = deletedBy || (isAutomatic ? 'SYSTEM' : 'MANUAL');
 
         await this.deletionLogsRepository.save(deletionLog);
 
@@ -168,7 +168,7 @@ export class ClientDeletionService {
 
         const allDeletions = await this.deletionLogsRepository.find({
             where: {
-                deletedAt: LessThan(since),
+                deletedAt: LessThan(new Date()), // All deletions up to now
             },
             order: {
                 deletedAt: 'DESC',
