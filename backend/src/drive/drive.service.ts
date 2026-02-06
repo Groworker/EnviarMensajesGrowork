@@ -4,12 +4,16 @@ import { google, drive_v3 } from 'googleapis';
 import { DriveFile, EmailAttachment } from './interfaces/drive-file.interface';
 import { Client } from '../entities/client.entity';
 import { createGoogleAuth } from '../common/utils/google-auth.util';
+import { AttachmentCacheService } from './attachment-cache.service';
 
 @Injectable()
 export class DriveService {
   private readonly logger = new Logger(DriveService.name);
 
-  constructor(private configService: ConfigService) {}
+  constructor(
+    private configService: ConfigService,
+    private cacheService: AttachmentCacheService,
+  ) {}
 
   /**
    * Creates an authenticated Google Drive client
@@ -103,6 +107,7 @@ export class DriveService {
 
   /**
    * Gets all PDF attachments from a client's DEFINITIVA folder
+   * Uses cache to avoid repeated downloads from Google Drive
    * @param client - The client entity with idCarpetaDefinitiva
    * @returns Array of attachments ready to be sent via email
    */
@@ -129,15 +134,42 @@ export class DriveService {
 
       // Download each file and prepare as attachment
       const attachments: EmailAttachment[] = [];
+      let cacheHits = 0;
+      let cacheMisses = 0;
 
       for (const file of files) {
         try {
-          const content = await this.downloadFile(file.id);
-          attachments.push({
-            filename: file.name,
-            content,
-            contentType: 'application/pdf',
-          });
+          // Check cache first
+          const cachedAttachment = await this.cacheService.get(
+            client.id,
+            file.id,
+          );
+
+          if (cachedAttachment) {
+            // Use cached version
+            attachments.push(cachedAttachment);
+            cacheHits++;
+          } else {
+            // Download from Google Drive
+            const content = await this.downloadFile(file.id);
+            const attachment: EmailAttachment = {
+              filename: file.name,
+              content,
+              contentType: 'application/pdf',
+            };
+
+            // Store in cache for future use
+            await this.cacheService.set(
+              client.id,
+              file.id,
+              file.name,
+              content,
+              'application/pdf',
+            );
+
+            attachments.push(attachment);
+            cacheMisses++;
+          }
         } catch (downloadError) {
           this.logger.error(
             `Failed to download file ${file.name} for client ${client.id}, skipping`,
@@ -147,7 +179,7 @@ export class DriveService {
       }
 
       this.logger.log(
-        `Prepared ${attachments.length} attachments for client ${client.id} (${client.nombre} ${client.apellido})`,
+        `Prepared ${attachments.length} attachments for client ${client.id} (${client.nombre} ${client.apellido}) - Cache: ${cacheHits} hits, ${cacheMisses} misses`,
       );
 
       return attachments;
