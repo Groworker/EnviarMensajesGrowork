@@ -400,6 +400,14 @@ export class EmailResponsesService {
       `Sending reply for response ${responseId} from ${client.emailOperativo} to ${response.fromEmail}`,
     );
 
+    // Log threading information for debugging
+    this.logger.debug(
+      `Threading info - ThreadID: ${response.gmailThreadId}, ` +
+      `InReplyTo: ${response.inReplyTo || 'N/A'}, ` +
+      `MessageID: ${response.gmailMessageId}, ` +
+      `References: ${response.referencesHeader ? 'Present' : 'N/A'}`,
+    );
+
     // Send email as reply in the same thread
     const result = await this.emailService.sendReplyInThread(
       response.fromEmail, // To: quien envió la respuesta original
@@ -407,7 +415,8 @@ export class EmailResponsesService {
       htmlContent,
       client.emailOperativo, // From: email del cliente
       response.gmailThreadId, // Thread ID para mantener conversación
-      response.gmailMessageId, // Message-ID para References header
+      response.gmailMessageId, // Message-ID del mensaje al que respondemos
+      response.referencesHeader, // Cadena completa de referencias existentes
     );
 
     // Mark response as read since we've replied

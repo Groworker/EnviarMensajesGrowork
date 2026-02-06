@@ -231,6 +231,8 @@ export class ResponseSyncService {
       bodyText: message.bodyText,
       bodyHtml: message.bodyHtml,
       receivedAt: message.receivedAt,
+      inReplyTo: message.inReplyTo,
+      referencesHeader: message.references,
       classification: ResponseClassification.SIN_CLASIFICAR,
       isRead: false,
     } as any);

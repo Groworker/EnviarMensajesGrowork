@@ -16,6 +16,50 @@ export class EmailService {
 
   constructor(private configService: ConfigService) { }
 
+  /**
+   * Normalize a Message-ID to ensure it has proper angle brackets format
+   * Handles cases where Message-ID might already have brackets or not
+   */
+  private normalizeMessageId(messageId: string): string {
+    if (!messageId) return '';
+
+    // Remove any existing angle brackets
+    const cleaned = messageId.trim().replace(/^<+|>+$/g, '');
+
+    // Return with proper angle brackets
+    return `<${cleaned}>`;
+  }
+
+  /**
+   * Build a complete References header chain for email threading
+   * Takes existing references and the current message ID to reply to
+   */
+  private buildReferencesHeader(
+    existingReferences: string | null,
+    inReplyToMessageId: string,
+  ): string {
+    const messageIds: string[] = [];
+
+    // Parse existing references if available
+    if (existingReferences) {
+      // Extract all Message-IDs from the References header
+      // Message-IDs are in format <id@domain.com>
+      const matches = existingReferences.match(/<[^>]+>/g);
+      if (matches) {
+        messageIds.push(...matches);
+      }
+    }
+
+    // Add the message we're replying to (normalized)
+    const normalizedReplyTo = this.normalizeMessageId(inReplyToMessageId);
+    if (normalizedReplyTo && !messageIds.includes(normalizedReplyTo)) {
+      messageIds.push(normalizedReplyTo);
+    }
+
+    // Join all Message-IDs with space (RFC 5322 compliant)
+    return messageIds.join(' ');
+  }
+
   async sendEmail(
     to: string,
     subject: string,
@@ -115,6 +159,7 @@ export class EmailService {
     fromEmail: string,
     threadId: string,
     inReplyToMessageId: string,
+    existingReferences?: string | null,
   ): Promise<EmailSendResult> {
     try {
       // Create JWT Client with Domain-Wide Delegation
@@ -135,14 +180,27 @@ export class EmailService {
       // Ensure subject starts with "Re:" if it doesn't already
       const replySubject = subject.startsWith('Re:') ? subject : `Re: ${subject}`;
 
+      // Normalize the Message-ID to ensure proper format
+      const normalizedInReplyTo = this.normalizeMessageId(inReplyToMessageId);
+
+      // Build complete References chain for proper threading
+      const referencesChain = this.buildReferencesHeader(
+        existingReferences,
+        inReplyToMessageId,
+      );
+
+      this.logger.debug(
+        `Threading headers - In-Reply-To: ${normalizedInReplyTo}, References: ${referencesChain}`,
+      );
+
       const sentInfo = await transporter.sendMail({
         to,
         from: fromEmail,
         subject: replySubject,
         html: htmlContent,
         headers: {
-          'In-Reply-To': `<${inReplyToMessageId}>`,
-          References: `<${inReplyToMessageId}>`,
+          'In-Reply-To': normalizedInReplyTo,
+          References: referencesChain,
         },
       });
 

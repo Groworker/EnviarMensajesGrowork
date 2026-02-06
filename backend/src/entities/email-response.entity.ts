@@ -35,6 +35,12 @@ export class EmailResponse {
   @Column({ name: 'gmail_thread_id' })
   gmailThreadId: string;
 
+  @Column({ name: 'in_reply_to', nullable: true, length: 500 })
+  inReplyTo: string;
+
+  @Column({ name: 'references_header', type: 'text', nullable: true })
+  referencesHeader: string;
+
   @Column({ name: 'from_email' })
   fromEmail: string;
 

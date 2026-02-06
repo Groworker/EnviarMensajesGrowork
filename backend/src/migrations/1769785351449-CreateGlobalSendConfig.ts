@@ -27,16 +27,16 @@ export class CreateGlobalSendConfig1769785351449 implements MigrationInterface {
                         comment: 'Hour to stop sending (0-23)',
                     },
                     {
-                        name: 'minDelaySeconds',
+                        name: 'minDelayMinutes',
                         type: 'int',
-                        default: 30,
-                        comment: 'Minimum delay in seconds between emails',
+                        default: 1,
+                        comment: 'Minimum delay in minutes between emails',
                     },
                     {
-                        name: 'maxDelaySeconds',
+                        name: 'maxDelayMinutes',
                         type: 'int',
-                        default: 120,
-                        comment: 'Maximum delay in seconds between emails',
+                        default: 5,
+                        comment: 'Maximum delay in minutes between emails',
                     },
                     {
                         name: 'enabled',
@@ -55,11 +55,18 @@ export class CreateGlobalSendConfig1769785351449 implements MigrationInterface {
             true,
         );
 
-        // Insert default configuration
-        await queryRunner.query(`
-      INSERT INTO global_send_config (id, "startHour", "endHour", "minDelaySeconds", "maxDelaySeconds", enabled)
-      VALUES (1, 9, 18, 30, 120, true)
+        // Check if table already has data
+        const result = await queryRunner.query(`
+      SELECT COUNT(*) as count FROM global_send_config
     `);
+
+        // Only insert if table is empty
+        if (result[0].count === '0') {
+            await queryRunner.query(`
+        INSERT INTO global_send_config (id, "startHour", "endHour", "minDelayMinutes", "maxDelayMinutes", enabled)
+        VALUES (1, 9, 18, 1, 5, true)
+      `);
+        }
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {

@@ -13,6 +13,8 @@ export interface GmailMessage {
   bodyHtml: string | null;
   receivedAt: Date;
   isReply: boolean;
+  inReplyTo: string | null;
+  references: string | null;
 }
 
 @Injectable()
@@ -181,6 +183,8 @@ export class GmailReaderService {
     const to = getHeader('To');
     const subject = getHeader('Subject');
     const date = getHeader('Date');
+    const inReplyTo = getHeader('In-Reply-To');
+    const references = getHeader('References');
 
     // Parse from address and name
     let fromEmail = from;
@@ -217,6 +221,8 @@ export class GmailReaderService {
       bodyHtml,
       receivedAt,
       isReply: false,
+      inReplyTo: inReplyTo || null,
+      references: references || null,
     };
   }
 
