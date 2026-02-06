@@ -20,6 +20,8 @@ import {
   Check,
   Inbox,
   Reply,
+  Sparkles,
+  Building,
 } from 'lucide-react';
 import ReplyModal from '@/components/ReplyModal';
 import { ClassificationBadge } from '@/components/ClassificationBadge';
@@ -643,68 +645,147 @@ export default function ResponsesPage() {
                       </div>
                     </td>
                   </tr>
-                  {/* Expanded Row */}
+                  {/* Expanded Row - Redesigned for better UX */}
                   {expandedRows.has(response.id) && (
-                    <tr key={`${response.id}-expanded`} className="bg-gray-50">
-                      <td colSpan={7} className="px-6 py-4">
-                        <div className="grid grid-cols-2 gap-6">
-                          {/* Left: Response Preview */}
-                          <div>
-                            <h4 className="font-medium text-gray-900 mb-2">
-                              Vista previa del contenido
-                            </h4>
-                            <div className="bg-white rounded-lg border p-4 text-sm text-gray-700 max-h-48 overflow-y-auto whitespace-pre-wrap">
-                              {response.bodyText || 'Sin contenido de texto'}
+                    <tr key={`${response.id}-expanded`} className="bg-gradient-to-br from-gray-50 to-white border-l-4 border-blue-500">
+                      <td colSpan={7} className="px-6 py-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                          {/* Main Content - Takes 2 columns on large screens */}
+                          <div className="lg:col-span-2 space-y-4">
+                            {/* Email Preview Card */}
+                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 border-b border-gray-200">
+                                <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                                  <Mail size={16} className="text-blue-600" />
+                                  Contenido del mensaje
+                                </h4>
+                              </div>
+                              <div className="p-4">
+                                <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-700 max-h-64 overflow-y-auto whitespace-pre-wrap leading-relaxed">
+                                  {response.bodyText || (
+                                    <span className="text-gray-400 italic">Sin contenido de texto</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Quick Actions */}
+                            <div className="flex flex-wrap gap-3">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenReply(response);
+                                }}
+                                className="flex-1 min-w-[200px] flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg font-medium shadow-sm transition-all"
+                              >
+                                <Reply size={18} />
+                                Responder Ahora
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleViewThread(response);
+                                }}
+                                className="flex-1 min-w-[200px] flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg font-medium shadow-sm transition-all"
+                              >
+                                <MessageSquare size={18} />
+                                Ver Conversación
+                              </button>
                             </div>
                           </div>
-                          {/* Right: Classification & Context */}
+
+                          {/* Sidebar - Quick Info & Classification */}
                           <div className="space-y-4">
-                            <div>
-                              <h4 className="font-medium text-gray-900 mb-2">
-                                Cambiar clasificación
-                              </h4>
-                              <div className="flex flex-wrap gap-2">
-                                {classificationOptions.map((cls) => (
-                                  <button
-                                    key={cls}
-                                    onClick={() =>
-                                      handleUpdateClassification(response.id, cls)
-                                    }
-                                    className={`px-3 py-1.5 text-xs font-medium rounded-full border transition ${response.classification === cls
-                                      ? 'bg-blue-600 text-white border-blue-600'
-                                      : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
-                                      }`}
-                                  >
-                                    {cls === 'negativa' && 'Negativa'}
-                                    {cls === 'automatica' && 'Automática'}
-                                    {cls === 'entrevista' && 'Entrevista'}
-                                    {cls === 'mas_informacion' && 'Más Info'}
-                                    {cls === 'contratado' && 'Contratado'}
-                                    {cls === 'sin_clasificar' && 'Sin Clasificar'}
-                                  </button>
-                                ))}
+                            {/* Classification Card */}
+                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                              <div className="bg-gradient-to-r from-purple-50 to-pink-50 px-4 py-3 border-b border-gray-200">
+                                <h4 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
+                                  <Sparkles size={14} className="text-purple-600" />
+                                  Clasificación IA
+                                </h4>
+                              </div>
+                              <div className="p-4 space-y-3">
+                                {/* Current Classification */}
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-medium text-gray-500">Estado actual:</span>
+                                  <ClassificationBadge
+                                    classification={response.classification}
+                                    confidence={response.classificationConfidence || undefined}
+                                    showConfidence={true}
+                                    size="sm"
+                                  />
+                                </div>
+
+                                {/* Quick Classification Buttons */}
+                                <div className="space-y-2">
+                                  <span className="text-xs font-medium text-gray-500 block">Cambiar a:</span>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {['entrevista', 'mas_informacion', 'negativa', 'automatica', 'contratado', 'sin_clasificar'].map((cls) => (
+                                      <button
+                                        key={cls}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleUpdateClassification(response.id, cls as Classification);
+                                        }}
+                                        className={`px-2 py-1.5 text-xs font-medium rounded-lg border transition ${
+                                          response.classification === cls
+                                            ? 'bg-blue-600 text-white border-blue-600 cursor-default'
+                                            : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                                        }`}
+                                        disabled={response.classification === cls}
+                                      >
+                                        {cls === 'negativa' && '🔴 Negativa'}
+                                        {cls === 'automatica' && '🤖 Automática'}
+                                        {cls === 'entrevista' && '✅ Entrevista'}
+                                        {cls === 'mas_informacion' && '📋 Más Info'}
+                                        {cls === 'contratado' && '🎉 Contratado'}
+                                        {cls === 'sin_clasificar' && '⏳ Pendiente'}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {/* AI Reasoning - Collapsed by default */}
+                                {response.classificationReasoning && (
+                                  <details className="text-xs">
+                                    <summary className="cursor-pointer text-gray-600 hover:text-gray-800 font-medium">
+                                      Ver análisis de IA
+                                    </summary>
+                                    <p className="mt-2 text-gray-600 bg-gray-50 rounded-lg p-2 leading-relaxed">
+                                      {response.classificationReasoning}
+                                    </p>
+                                  </details>
+                                )}
+
+                                {/* Re-classify button */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleReclassify(response.id);
+                                  }}
+                                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition"
+                                >
+                                  <RotateCcw size={14} />
+                                  Reclasificar con IA
+                                </button>
                               </div>
                             </div>
-                            {response.classificationReasoning && (
-                              <div>
-                                <h4 className="font-medium text-gray-900 mb-2">
-                                  Razón de clasificación (IA)
-                                </h4>
-                                <p className="text-sm text-gray-600 bg-white rounded-lg border p-3">
-                                  {response.classificationReasoning}
-                                </p>
-                              </div>
-                            )}
+
+                            {/* Job Offer Info - Only if available */}
                             {response.emailSend?.jobOffer && (
-                              <div>
-                                <h4 className="font-medium text-gray-900 mb-2">
-                                  Oferta relacionada
-                                </h4>
-                                <div className="text-sm bg-white rounded-lg border p-3">
-                                  <div className="font-medium">
+                              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                                <div className="bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-3 border-b border-gray-200">
+                                  <h4 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
+                                    <Briefcase size={14} className="text-amber-600" />
+                                    Oferta de trabajo
+                                  </h4>
+                                </div>
+                                <div className="p-4">
+                                  <div className="font-medium text-gray-900 text-sm mb-1">
                                     {response.emailSend.jobOffer.titulo}
                                   </div>
-                                  <div className="text-gray-600">
+                                  <div className="text-xs text-gray-600 flex items-center gap-1">
+                                    <Building size={12} />
                                     {response.emailSend.jobOffer.empresa}
                                   </div>
                                 </div>
