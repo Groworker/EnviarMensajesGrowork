@@ -79,7 +79,12 @@ export default function ReplyModal({
   threadData,
   onReplySent,
 }: ReplyModalProps) {
-  const [subject, setSubject] = useState(`Re: ${response.subject}`);
+  // Clean subject and add Re: if not present
+  const cleanSubject = response.subject.startsWith('Re:')
+    ? response.subject
+    : `Re: ${response.subject}`;
+
+  const [subject, setSubject] = useState(cleanSubject);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
@@ -260,7 +265,7 @@ export default function ReplyModal({
               }`}
               title="Negrita"
             >
-              <Bold className="w-4 h-4" />
+              <Bold className="w-4 h-4 text-gray-700" />
             </button>
             <button
               onClick={() => editor.chain().focus().toggleItalic().run()}
@@ -269,7 +274,7 @@ export default function ReplyModal({
               }`}
               title="Cursiva"
             >
-              <Italic className="w-4 h-4" />
+              <Italic className="w-4 h-4 text-gray-700" />
             </button>
             <div className="w-px h-6 bg-gray-300 mx-1" />
             <button
@@ -279,7 +284,7 @@ export default function ReplyModal({
               }`}
               title="Lista"
             >
-              <List className="w-4 h-4" />
+              <List className="w-4 h-4 text-gray-700" />
             </button>
             <button
               onClick={() => editor.chain().focus().toggleOrderedList().run()}
@@ -288,7 +293,7 @@ export default function ReplyModal({
               }`}
               title="Lista numerada"
             >
-              <ListOrdered className="w-4 h-4" />
+              <ListOrdered className="w-4 h-4 text-gray-700" />
             </button>
             <div className="w-px h-6 bg-gray-300 mx-1" />
             <button
@@ -297,7 +302,7 @@ export default function ReplyModal({
               className="p-2 rounded hover:bg-gray-100 disabled:opacity-50"
               title="Deshacer"
             >
-              <Undo className="w-4 h-4" />
+              <Undo className="w-4 h-4 text-gray-700" />
             </button>
             <button
               onClick={() => editor.chain().focus().redo().run()}
@@ -305,7 +310,7 @@ export default function ReplyModal({
               className="p-2 rounded hover:bg-gray-100 disabled:opacity-50"
               title="Rehacer"
             >
-              <Redo className="w-4 h-4" />
+              <Redo className="w-4 h-4 text-gray-700" />
             </button>
 
             <div className="flex-1" />
@@ -346,9 +351,9 @@ export default function ReplyModal({
             </button>
             <button
               onClick={handleSendReply}
-              disabled={isSending || !editor?.getText().trim() || !subject.trim()}
+              disabled={isSending || !editor?.getText().trim()}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              title={!editor?.getText().trim() ? 'Escribe un mensaje antes de enviar' : !subject.trim() ? 'El asunto no puede estar vacío' : ''}
+              title={!editor?.getText().trim() ? 'Escribe un mensaje antes de enviar' : ''}
             >
               {isSending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
