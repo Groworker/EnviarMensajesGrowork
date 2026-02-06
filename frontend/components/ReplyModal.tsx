@@ -94,7 +94,7 @@ export default function ReplyModal({
     editorProps: {
       attributes: {
         class:
-          'prose prose-sm max-w-none min-h-[200px] p-4 focus:outline-none',
+          'prose prose-sm max-w-none min-h-[200px] p-4 focus:outline-none text-gray-900 prose-p:text-gray-900 prose-strong:text-gray-900 prose-li:text-gray-900',
       },
     },
   });
@@ -327,7 +327,7 @@ export default function ReplyModal({
 
         {/* Editor Content */}
         <div className="flex-1 overflow-auto px-6 py-2">
-          <div className="border border-gray-300 rounded-lg min-h-[200px]">
+          <div className="border border-gray-300 rounded-lg min-h-[200px] bg-white">
             <EditorContent editor={editor} />
           </div>
         </div>
@@ -346,8 +346,9 @@ export default function ReplyModal({
             </button>
             <button
               onClick={handleSendReply}
-              disabled={isSending || !editor?.getText().trim()}
+              disabled={isSending || !editor?.getText().trim() || !subject.trim()}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              title={!editor?.getText().trim() ? 'Escribe un mensaje antes de enviar' : !subject.trim() ? 'El asunto no puede estar vacío' : ''}
             >
               {isSending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
