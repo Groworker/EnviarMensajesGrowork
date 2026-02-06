@@ -185,7 +185,7 @@ export class EmailService {
 
       // Build complete References chain for proper threading
       const referencesChain = this.buildReferencesHeader(
-        existingReferences,
+        existingReferences ?? null,
         inReplyToMessageId,
       );
 
