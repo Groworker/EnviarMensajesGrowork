@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Client } from '../entities/client.entity';
@@ -9,11 +9,8 @@ import {
   UpdateClientDto,
   UpdateSettingsDto,
   UpdateEstadoDto,
-  DeleteClientDto,
 } from './dto';
 import { ZohoService } from '../zoho/zoho.service';
-import { GoogleWorkspaceService } from '../google-workspace/google-workspace.service';
-import { JobOffer } from '../entities/job-offer.entity';
 
 export interface ClientEmailStats {
   clientId: number;
@@ -40,10 +37,7 @@ export class ClientsService {
     private readonly settingsRepository: Repository<ClientSendSettings>,
     @InjectRepository(EmailSend)
     private readonly emailSendRepository: Repository<EmailSend>,
-    @InjectRepository(JobOffer)
-    private readonly jobOfferRepository: Repository<JobOffer>,
     private readonly zohoService: ZohoService,
-    private readonly googleWorkspaceService: GoogleWorkspaceService,
   ) { }
 
   async findAll(): Promise<Client[]> {
@@ -273,252 +267,6 @@ export class ClientsService {
       reserved,
       successRate,
       lastEmailAt: lastEmail?.lastAt || null,
-    };
-  }
-
-  /**
-   * Check if a client is eligible for deletion
-   * Returns information about whether client can be deleted and why
-   */
-  async checkDeletionEligibility(clientId: number): Promise<{
-    canDelete: boolean;
-    reasons: string[];
-    warnings: string[];
-    clientInfo: any;
-  }> {
-    const client = await this.findOne(clientId);
-
-    const reasons: string[] = [];
-    const warnings: string[] = [];
-
-    // Get matching job offers to check if there are pending emails
-    const matchingOffers = await this.findMatchingOffersForClient(client);
-
-    // Check condition 1: No more matching emails available
-    const hasMatchingEmails = matchingOffers.length > 0;
-
-    // Check condition 2: Estado CRM is "Cerrado"
-    const isCerrado = client.estado === 'Cerrado';
-
-    // Collect reasons why client CANNOT be deleted automatically
-    if (hasMatchingEmails) {
-      reasons.push(
-        `El cliente aún tiene ${matchingOffers.length} ofertas de trabajo que coinciden con sus preferencias`,
-      );
-    }
-
-    if (!isCerrado) {
-      reasons.push(
-        `El estado CRM del cliente es "${client.estado}" (debe ser "Cerrado" para eliminar automáticamente)`,
-      );
-    }
-
-    // Check if account exists in Google Workspace
-    let googleAccountExists = false;
-    if (client.emailOperativo) {
-      try {
-        googleAccountExists = await this.googleWorkspaceService.checkUserExists(
-          client.emailOperativo,
-        );
-        if (!googleAccountExists) {
-          warnings.push(
-            `La cuenta de Google Workspace ${client.emailOperativo} no existe o ya ha sido eliminada`,
-          );
-        }
-      } catch (error) {
-        warnings.push(
-          `No se pudo verificar si la cuenta de Google Workspace existe: ${error.message}`,
-        );
-      }
-    } else {
-      warnings.push('El cliente no tiene email operativo configurado');
-    }
-
-    // Client can be deleted if they meet both conditions OR if forced manually
-    const canDelete = !hasMatchingEmails && isCerrado;
-
-    const emailStats = await this.getClientEmailStats(clientId);
-
-    return {
-      canDelete,
-      reasons,
-      warnings,
-      clientInfo: {
-        id: client.id,
-        nombre: `${client.nombre} ${client.apellido}`.trim(),
-        email: client.email,
-        emailOperativo: client.emailOperativo,
-        estado: client.estado,
-        googleAccountExists,
-        stats: emailStats,
-        matchingOffersCount: matchingOffers.length,
-      },
-    };
-  }
-
-  /**
-   * Find matching job offers for a client (similar logic to worker.service findCandidates)
-   */
-  private async findMatchingOffersForClient(client: Client): Promise<JobOffer[]> {
-    // Get IDs of already sent offers for this client
-    const sentOffers = await this.emailSendRepository
-      .createQueryBuilder('s')
-      .select('s.job_offer_id')
-      .where('s.client_id = :clientId', { clientId: client.id })
-      .getRawMany<{ job_offer_id: number }>();
-
-    const sentIds = sentOffers.map((s) => s.job_offer_id);
-    const excludeIds = sentIds.length > 0 ? sentIds : [-1];
-
-    // Build Query based on Client Fields
-    const qb = this.jobOfferRepository
-      .createQueryBuilder('offer')
-      .where('offer.id NOT IN (:...excludeIds)', { excludeIds });
-
-    // Normalize Zoho data
-    const paisesInteres = Array.isArray(client.paisesInteres?.values)
-      ? client.paisesInteres.values
-      : typeof client.paisesInteres?.values === 'string'
-        ? [client.paisesInteres.values]
-        : Array.isArray(client.paisesInteres)
-          ? client.paisesInteres
-          : [];
-
-    const ciudadesInteres = Array.isArray(client.ciudadesInteres?.values)
-      ? client.ciudadesInteres.values
-      : typeof client.ciudadesInteres?.values === 'string'
-        ? [client.ciudadesInteres.values]
-        : Array.isArray(client.ciudadesInteres)
-          ? client.ciudadesInteres
-          : [];
-
-    // Apply matching criteria
-    const criteria = client.sendSettings?.matchingCriteria || {};
-    const matchMode = criteria.matchMode || 'all';
-    const enabledFilters = criteria.enabledFilters;
-
-    const conditions: string[] = [];
-    const parameters: any = {};
-
-    // Helper function to check if a filter is enabled
-    const isFilterEnabled = (filterName: string): boolean => {
-      if (!enabledFilters || enabledFilters.length === 0) {
-        return true;
-      }
-      return enabledFilters.includes(filterName);
-    };
-
-    // Apply filters
-    if (isFilterEnabled('countries') && paisesInteres && paisesInteres.length > 0) {
-      conditions.push('offer.pais IN (:...countries)');
-      parameters.countries = paisesInteres;
-    }
-
-    if (isFilterEnabled('cities') && ciudadesInteres && ciudadesInteres.length > 0) {
-      conditions.push('offer.ciudad IN (:...cities)');
-      parameters.cities = ciudadesInteres;
-    }
-
-    if (isFilterEnabled('jobTitle') && client.jobTitle) {
-      const jobTitleMode = criteria.jobTitleMatchMode || 'contains';
-      if (jobTitleMode === 'exact') {
-        conditions.push('LOWER(offer.puesto) = LOWER(:jobTitle)');
-        parameters.jobTitle = client.jobTitle;
-      } else {
-        conditions.push('offer.puesto ILIKE :jobTitle');
-        parameters.jobTitle = `%${client.jobTitle}%`;
-      }
-    }
-
-    // Apply conditions based on matchMode
-    if (conditions.length > 0) {
-      if (matchMode === 'all') {
-        const combinedCondition = conditions.join(' AND ');
-        qb.andWhere(`(${combinedCondition})`, parameters);
-      } else {
-        const combinedCondition = conditions.join(' OR ');
-        qb.andWhere(`(${combinedCondition})`, parameters);
-      }
-    }
-
-    return qb.getMany();
-  }
-
-  /**
-   * Delete a client and their Google Workspace account
-   */
-  async deleteClient(
-    clientId: number,
-    deleteDto: DeleteClientDto,
-  ): Promise<{ success: boolean; message: string; deletedClient: any }> {
-    // Verify deletion is confirmed
-    if (!deleteDto.confirmed) {
-      throw new BadRequestException(
-        'Deletion must be confirmed by setting confirmed: true',
-      );
-    }
-
-    const client = await this.findOne(clientId);
-
-    // Check eligibility
-    const eligibility = await this.checkDeletionEligibility(clientId);
-
-    // Log deletion attempt
-    this.logger.log(
-      `Attempting to delete client ${clientId} (${client.nombre} ${client.apellido})`,
-    );
-    this.logger.log(
-      `Can delete automatically: ${eligibility.canDelete}. Reasons: ${eligibility.reasons.join(', ')}`,
-    );
-
-    // Try to delete from Google Workspace if email operativo exists
-    let googleWorkspaceDeleted = false;
-    let googleWorkspaceError: string | null = null;
-
-    if (client.emailOperativo) {
-      try {
-        await this.googleWorkspaceService.deleteUser(client.emailOperativo);
-        googleWorkspaceDeleted = true;
-        this.logger.log(
-          `Successfully deleted Google Workspace account: ${client.emailOperativo}`,
-        );
-      } catch (error: any) {
-        googleWorkspaceError = error.message;
-        this.logger.warn(
-          `Failed to delete Google Workspace account ${client.emailOperativo}: ${error.message}`,
-        );
-        // Continue with soft delete even if Google Workspace deletion fails
-      }
-    }
-
-    // Perform soft delete (mark as deleted in database)
-    client.deletedAt = new Date();
-    client.deletionReason = deleteDto.reason || 'No reason provided';
-
-    if (googleWorkspaceError) {
-      client.deletionReason += ` | Google Workspace deletion error: ${googleWorkspaceError}`;
-    }
-
-    await this.clientRepository.save(client);
-
-    const resultMessage = googleWorkspaceDeleted
-      ? `Cliente eliminado correctamente. Cuenta de Google Workspace ${client.emailOperativo} eliminada.`
-      : client.emailOperativo && googleWorkspaceError
-        ? `Cliente marcado como eliminado en la base de datos, pero falló la eliminación de Google Workspace: ${googleWorkspaceError}`
-        : 'Cliente marcado como eliminado en la base de datos (no tenía cuenta de Google Workspace)';
-
-    return {
-      success: true,
-      message: resultMessage,
-      deletedClient: {
-        id: client.id,
-        nombre: `${client.nombre} ${client.apellido}`.trim(),
-        emailOperativo: client.emailOperativo,
-        deletedAt: client.deletedAt,
-        deletionReason: client.deletionReason,
-        googleWorkspaceDeleted,
-        googleWorkspaceError,
-      },
     };
   }
 }
