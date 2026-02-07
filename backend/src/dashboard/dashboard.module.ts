@@ -5,11 +5,10 @@ import { DashboardController } from './dashboard.controller';
 import { Client } from '../entities/client.entity';
 import { EmailSend } from '../entities/email-send.entity';
 import { Notification } from '../notifications/entities/notification.entity';
-import { DeletionLog } from '../clients/entities/deletion-log.entity';
 
 @Module({
     imports: [
-        TypeOrmModule.forFeature([Client, EmailSend, Notification, DeletionLog]),
+        TypeOrmModule.forFeature([Client, EmailSend, Notification]),
     ],
     controllers: [DashboardController],
     providers: [DashboardService],

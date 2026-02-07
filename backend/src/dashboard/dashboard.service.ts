@@ -4,7 +4,6 @@ import { Repository } from 'typeorm';
 import { Client } from '../entities/client.entity';
 import { EmailSend } from '../entities/email-send.entity';
 import { Notification } from '../notifications/entities/notification.entity';
-import { DeletionLog } from '../clients/entities/deletion-log.entity';
 
 export interface PipelineStats {
     estado: string;
@@ -37,8 +36,6 @@ export class DashboardService {
         private emailSendsRepository: Repository<EmailSend>,
         @InjectRepository(Notification)
         private notificationsRepository: Repository<Notification>,
-        @InjectRepository(DeletionLog)
-        private deletionLogsRepository: Repository<DeletionLog>,
     ) { }
 
     /**
@@ -183,13 +180,8 @@ export class DashboardService {
             where: { isRead: false },
         });
 
-        // Recent deletions (last 7 days)
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        const recentDeletions = await this.deletionLogsRepository
-            .createQueryBuilder('log')
-            .where('log.deleted_at >= :weekAgo', { weekAgo })
-            .getCount();
+        // Recent deletions (placeholder - DeletionLog entity not implemented yet)
+        const recentDeletions = 0;
 
         return {
             activeClients,

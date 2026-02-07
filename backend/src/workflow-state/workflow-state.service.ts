@@ -62,7 +62,10 @@ export class WorkflowStateService {
       if (!statesByWorkflow.has(state.workflowType)) {
         statesByWorkflow.set(state.workflowType, []);
       }
-      statesByWorkflow.get(state.workflowType).push(state);
+      const workflowStates = statesByWorkflow.get(state.workflowType);
+      if (workflowStates) {
+        workflowStates.push(state);
+      }
     });
 
     // Define workflow columns
@@ -124,7 +127,7 @@ export class WorkflowStateService {
           executedAt: state.executedAt,
           errorMessage: state.errorMessage,
           metadata: state.metadata,
-          driveFolder: client.driveFolderId,
+          driveFolder: client.idCarpetaCliente,
           nextWorkflow: workflow.nextWorkflow,
         };
       });
@@ -257,10 +260,10 @@ export class WorkflowStateService {
     }
 
     state.status = WorkflowStatus.PENDING;
-    state.executionUrl = null;
-    state.executedAt = null;
-    state.errorMessage = null;
-    state.metadata = null;
+    state.executionUrl = null as any;
+    state.executedAt = null as any;
+    state.errorMessage = null as any;
+    state.metadata = null as any;
 
     const savedState = await this.workflowStateRepository.save(state);
     this.logger.log(
