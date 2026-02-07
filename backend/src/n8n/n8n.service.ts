@@ -1,0 +1,102 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import axios from 'axios';
+import { WorkflowType } from '../entities/client-workflow-state.entity';
+
+@Injectable()
+export class N8nService {
+  private readonly logger = new Logger(N8nService.name);
+  private readonly n8nBaseUrl: string;
+  private readonly n8nApiKey: string;
+
+  // Map workflow types to n8n webhook URLs
+  // Only workflows that can be triggered manually from the UI need URLs
+  private readonly workflowWebhooks: Record<WorkflowType, string> = {
+    [WorkflowType.WKF_1]: '', // Auto-triggered from Zoho CRM, no manual trigger needed
+    [WorkflowType.WKF_1_1]: process.env.N8N_WKF1_1_WEBHOOK_URL || '', // Manual trigger from UI
+    [WorkflowType.WKF_1_2]: '', // Auto-triggered every 5 hours, no manual trigger needed
+    [WorkflowType.WKF_1_3]: process.env.N8N_WKF1_3_WEBHOOK_URL || '', // Manual trigger from UI
+    [WorkflowType.WKF_4]: '', // Auto-triggered from Zoho CRM, no manual trigger needed
+  };
+
+  constructor(private readonly configService: ConfigService) {
+    this.n8nBaseUrl = this.configService.get<string>('N8N_BASE_URL', '');
+    this.n8nApiKey = this.configService.get<string>('N8N_API_KEY', '');
+  }
+
+  /**
+   * Trigger a specific workflow for a client
+   */
+  async triggerWorkflow(
+    workflowType: WorkflowType,
+    clientId: number,
+    additionalData?: Record<string, any>,
+  ): Promise<{ success: boolean; executionUrl?: string; error?: string }> {
+    const webhookUrl = this.workflowWebhooks[workflowType];
+
+    if (!webhookUrl) {
+      const error = `No webhook URL configured for workflow ${workflowType}`;
+      this.logger.error(error);
+      return { success: false, error };
+    }
+
+    try {
+      this.logger.log(
+        `Triggering workflow ${workflowType} for client ${clientId}`,
+      );
+
+      const payload = {
+        clientId,
+        workflowType,
+        timestamp: new Date().toISOString(),
+        ...additionalData,
+      };
+
+      const response = await axios.post(webhookUrl, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this.n8nApiKey && { 'X-N8N-API-KEY': this.n8nApiKey }),
+        },
+        timeout: 30000, // 30 second timeout
+      });
+
+      this.logger.log(
+        `Successfully triggered workflow ${workflowType} for client ${clientId}`,
+      );
+
+      // Extract execution URL from response if available
+      const executionUrl = response.data?.executionUrl || null;
+
+      return {
+        success: true,
+        executionUrl,
+      };
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message;
+      this.logger.error(
+        `Failed to trigger workflow ${workflowType} for client ${clientId}: ${errorMessage}`,
+      );
+
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  }
+
+  /**
+   * Check if a workflow webhook is configured
+   */
+  isWorkflowConfigured(workflowType: WorkflowType): boolean {
+    return !!this.workflowWebhooks[workflowType];
+  }
+
+  /**
+   * Get all configured workflows
+   */
+  getConfiguredWorkflows(): WorkflowType[] {
+    return Object.entries(this.workflowWebhooks)
+      .filter(([_, url]) => !!url)
+      .map(([type, _]) => type as WorkflowType);
+  }
+}

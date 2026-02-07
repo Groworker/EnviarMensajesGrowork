@@ -4,6 +4,11 @@ import { Repository } from 'typeorm';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/entities/notification.entity';
 import { Client } from '../entities/client.entity';
+import { WorkflowStateService } from '../workflow-state/workflow-state.service';
+import {
+    WorkflowType,
+    WorkflowStatus,
+} from '../entities/client-workflow-state.entity';
 
 interface N8nWebhookPayload {
     workflowId: string;
@@ -14,6 +19,9 @@ interface N8nWebhookPayload {
     clientName?: string;
     data?: Record<string, any>;
     timestamp: string;
+    status?: 'success' | 'error';
+    errorMessage?: string;
+    executionUrl?: string;
 }
 
 @Controller('n8n')
@@ -22,6 +30,7 @@ export class N8nController {
 
     constructor(
         private readonly notificationsService: NotificationsService,
+        private readonly workflowStateService: WorkflowStateService,
         @InjectRepository(Client)
         private readonly clientsRepository: Repository<Client>,
     ) { }
@@ -35,18 +44,46 @@ export class N8nController {
 
             // If zohoId is provided but not clientId, lookup the client
             if (!clientId && payload.zohoId) {
-                const client = await this.clientsRepository.findOne({
+                let client = await this.clientsRepository.findOne({
                     where: { zohoId: payload.zohoId },
                 });
+
                 if (client) {
                     clientId = client.id;
                     this.logger.log(`Resolved zohoId ${payload.zohoId} to clientId ${clientId}`);
                 } else {
-                    this.logger.warn(`Client not found for zohoId: ${payload.zohoId}`);
+                    // Client doesn't exist yet - create it automatically
+                    // This can happen when WKF-1 executes before WKF-4
+                    this.logger.log(`Client not found for zohoId ${payload.zohoId}, creating basic client record`);
+
+                    try {
+                        const newClient = this.clientsRepository.create({
+                            zohoId: payload.zohoId,
+                            nombre: payload.clientName?.split(' ')[0] || '',
+                            apellido: payload.clientName?.split(' ').slice(1).join(' ') || '',
+                            emailOperativo: payload.data?.email || null,
+                            idCarpetaCliente: payload.data?.carpetaCliente || null,
+                            idCarpetaCv: payload.data?.carpetaCV || null,
+                            idCarpetaOld: payload.data?.carpetaOLD || null,
+                            idCarpetaNew: payload.data?.carpetaNEW || null,
+                            idCarpetaDefinitiva: payload.data?.carpetaDEFINITIVA || null,
+                        });
+                        const savedClient = await this.clientsRepository.save(newClient);
+                        client = savedClient;
+                        clientId = savedClient.id;
+                        this.logger.log(`Created new client with ID ${clientId} for zohoId ${payload.zohoId}`);
+
+                        // Initialize workflow states for the new client
+                        await this.workflowStateService.initializeClientStates(clientId);
+                        this.logger.log(`Initialized workflow states for client ${clientId}`);
+                    } catch (createError: any) {
+                        this.logger.error(`Failed to create client for zohoId ${payload.zohoId}: ${createError.message}`);
+                        // Continue without clientId - the notification will still be created but won't be associated with a client
+                    }
                 }
             }
 
-            // Map workflow IDs to notification types
+            // Map workflow IDs to notification types and workflow types
             const typeMap: Record<string, NotificationType> = {
                 'BuL088npiVZ6gak7': NotificationType.WORKFLOW_WKF1,
                 'Ze3INzogY594XOCg': NotificationType.WORKFLOW_WKF1_1,
@@ -55,7 +92,16 @@ export class N8nController {
                 '49XoEhgqjyRt3LSg': NotificationType.WORKFLOW_WKF4,
             };
 
+            const workflowTypeMap: Record<string, WorkflowType> = {
+                'BuL088npiVZ6gak7': WorkflowType.WKF_1,
+                'Ze3INzogY594XOCg': WorkflowType.WKF_1_1,
+                'Ajfl4VnlJbPlA03E': WorkflowType.WKF_1_2,
+                'EoSIHDe8HPHQrUWT': WorkflowType.WKF_1_3,
+                '49XoEhgqjyRt3LSg': WorkflowType.WKF_4,
+            };
+
             const notificationType = typeMap[payload.workflowId] || NotificationType.SYSTEM;
+            const workflowType = workflowTypeMap[payload.workflowId];
 
             // Create notification
             await this.notificationsService.notifyWorkflowEvent(
@@ -71,6 +117,29 @@ export class N8nController {
             );
 
             this.logger.log(`Notification created for workflow ${payload.workflowId}`);
+
+            // Update workflow state if clientId and workflowType are available
+            if (clientId && workflowType) {
+                const status = payload.status === 'error' ? WorkflowStatus.ERROR : WorkflowStatus.OK;
+
+                await this.workflowStateService.updateWorkflowState(clientId, {
+                    workflowType,
+                    status,
+                    executionUrl: payload.executionUrl,
+                    errorMessage: payload.errorMessage,
+                    metadata: {
+                        event: payload.event,
+                        timestamp: payload.timestamp,
+                        ...payload.data,
+                    },
+                });
+
+                this.logger.log(`Updated workflow state for client ${clientId}: ${workflowType} -> ${status}`);
+            } else {
+                this.logger.warn(
+                    `Could not update workflow state: clientId=${clientId}, workflowType=${workflowType}`,
+                );
+            }
 
             return {
                 success: true,

@@ -22,8 +22,11 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ClientsModule } from './clients/clients.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { N8nModule } from './n8n/n8n.module';
+import { WorkflowStateModule } from './workflow-state/workflow-state.module';
 import { Notification } from './notifications/entities/notification.entity';
-import { DeletionLog } from './clients/entities/deletion-log.entity';
+import { ClientWorkflowState } from './entities/client-workflow-state.entity';
+import { CvCreator } from './entities/cv-creator.entity';
+import { CvCreatorsModule } from './cv-creators/cv-creators.module';
 import configuration from './config/configuration';
 import { envValidationSchema } from './config/env.validation';
 
@@ -59,7 +62,8 @@ import { envValidationSchema } from './config/env.validation';
           EmailResponse,
           GlobalSendConfig,
           Notification,
-          DeletionLog,
+          ClientWorkflowState,
+          CvCreator,
         ],
         synchronize: false, // We will use migrations
         ssl: configService.get<string>('DATABASE_SSL') === 'true',
@@ -75,6 +79,8 @@ import { envValidationSchema } from './config/env.validation';
     ClientsModule,
     DashboardModule,
     N8nModule,
+    WorkflowStateModule,
+    CvCreatorsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

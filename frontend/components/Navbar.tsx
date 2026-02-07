@@ -14,6 +14,8 @@ export default function Navbar() {
     const navItems = [
         { href: '/dashboard', label: 'Panel de Control' },
         { href: '/clients', label: 'Clientes' },
+        { href: '/notifications', label: 'Notificaciones' },
+        { href: '/cv-creators', label: 'Creadores CV' },
         { href: '/preview-emails', label: 'Preview Emails' },
         { href: '/responses', label: 'Respuestas' },
     ];

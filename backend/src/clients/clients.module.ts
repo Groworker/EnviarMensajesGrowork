@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Client } from '../entities/client.entity';
 import { ClientsController } from './clients.controller';
@@ -11,6 +11,7 @@ import { GlobalSendConfig } from '../entities/global-send-config.entity';
 import { EmailModule } from '../email/email.module';
 import { DriveModule } from '../drive/drive.module';
 import { ZohoModule } from '../zoho/zoho.module';
+import { WorkflowStateModule } from '../workflow-state/workflow-state.module';
 
 @Module({
     imports: [
@@ -25,6 +26,7 @@ import { ZohoModule } from '../zoho/zoho.module';
         EmailModule,
         DriveModule,
         ZohoModule,
+        forwardRef(() => WorkflowStateModule),
     ],
     controllers: [ClientsController],
     providers: [ClientsService],

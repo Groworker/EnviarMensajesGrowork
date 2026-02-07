@@ -11,6 +11,7 @@ import {
   UpdateEstadoDto,
 } from './dto';
 import { ZohoService } from '../zoho/zoho.service';
+import { WorkflowStateService } from '../workflow-state/workflow-state.service';
 
 export interface ClientEmailStats {
   clientId: number;
@@ -38,6 +39,7 @@ export class ClientsService {
     @InjectRepository(EmailSend)
     private readonly emailSendRepository: Repository<EmailSend>,
     private readonly zohoService: ZohoService,
+    private readonly workflowStateService: WorkflowStateService,
   ) { }
 
   async findAll(): Promise<Client[]> {
@@ -71,7 +73,22 @@ export class ClientsService {
     }
 
     const client = this.clientRepository.create(createClientDto);
-    return this.clientRepository.save(client);
+    const savedClient = await this.clientRepository.save(client);
+
+    // Initialize workflow states for the new client
+    try {
+      await this.workflowStateService.initializeClientStates(savedClient.id);
+      this.logger.log(
+        `Initialized workflow states for new client ${savedClient.id}`,
+      );
+    } catch (error: any) {
+      this.logger.error(
+        `Failed to initialize workflow states for client ${savedClient.id}: ${error.message}`,
+      );
+      // Don't fail the client creation if workflow state initialization fails
+    }
+
+    return savedClient;
   }
 
   async update(
