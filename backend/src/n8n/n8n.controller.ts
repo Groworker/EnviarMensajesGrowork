@@ -85,7 +85,8 @@ export class N8nController {
 
             // Map workflow IDs to notification types and workflow types
             const typeMap: Record<string, NotificationType> = {
-                'BuL088npiVZ6gak7': NotificationType.WORKFLOW_WKF1,
+                'BuL088npiVZ6gak7': NotificationType.WORKFLOW_WKF1, // Old ID
+                'AMtg259bLLwhgbUL': NotificationType.WORKFLOW_WKF1, // New ID
                 'Ze3INzogY594XOCg': NotificationType.WORKFLOW_WKF1_1, // Old ID
                 'xCcVhFUwAmDJ4JOT': NotificationType.WORKFLOW_WKF1_1, // New ID
                 'Ajfl4VnlJbPlA03E': NotificationType.WORKFLOW_WKF1_2,
@@ -94,7 +95,8 @@ export class N8nController {
             };
 
             const workflowTypeMap: Record<string, WorkflowType> = {
-                'BuL088npiVZ6gak7': WorkflowType.WKF_1,
+                'BuL088npiVZ6gak7': WorkflowType.WKF_1, // Old ID
+                'AMtg259bLLwhgbUL': WorkflowType.WKF_1, // New ID
                 'Ze3INzogY594XOCg': WorkflowType.WKF_1_1, // Old ID
                 'xCcVhFUwAmDJ4JOT': WorkflowType.WKF_1_1, // New ID
                 'Ajfl4VnlJbPlA03E': WorkflowType.WKF_1_2,
