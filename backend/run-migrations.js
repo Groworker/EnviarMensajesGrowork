@@ -17,9 +17,14 @@ async function runMigrations() {
     await client.connect();
     console.log('✅ Conectado exitosamente\n');
 
-    // Read SQL file
-    const sqlFilePath = path.join(__dirname, 'run-migrations.sql');
+    // Read SQL file (use fix-triggers.sql if it exists, otherwise run-migrations.sql)
+    const fixTriggersPath = path.join(__dirname, 'fix-triggers.sql');
+    const runMigrationsPath = path.join(__dirname, 'run-migrations.sql');
+
+    const sqlFilePath = fs.existsSync(fixTriggersPath) ? fixTriggersPath : runMigrationsPath;
     const sql = fs.readFileSync(sqlFilePath, 'utf8');
+
+    console.log(`📄 Ejecutando: ${path.basename(sqlFilePath)}\n`);
 
     console.log('📝 Ejecutando migraciones SQL...\n');
 
