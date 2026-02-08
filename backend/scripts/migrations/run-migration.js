@@ -19,7 +19,7 @@ async function runMigration() {
         console.log('✅ Connected to database');
 
         // Read SQL file
-        const sqlFile = path.join(__dirname, 'migrations', 'add-notifications-and-deletion-tracking.sql');
+        const sqlFile = path.join(__dirname, 'add-notifications-and-deletion-tracking.sql');
         const sql = fs.readFileSync(sqlFile, 'utf8');
 
         console.log('📄 Executing migration...');
