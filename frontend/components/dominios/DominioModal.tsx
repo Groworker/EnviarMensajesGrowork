@@ -15,7 +15,6 @@ interface FormData {
   dominio: string;
   activo: boolean;
   prioridad: number;
-  usuariosActuales: number;
 }
 
 export default function DominioModal({ dominio, onClose }: DominioModalProps) {
@@ -23,7 +22,6 @@ export default function DominioModal({ dominio, onClose }: DominioModalProps) {
     dominio: '',
     activo: true,
     prioridad: 1,
-    usuariosActuales: 0,
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -34,7 +32,6 @@ export default function DominioModal({ dominio, onClose }: DominioModalProps) {
         dominio: dominio.dominio,
         activo: dominio.activo,
         prioridad: dominio.prioridad,
-        usuariosActuales: dominio.usuariosActuales ?? 0,
       });
     }
   }, [dominio]);
@@ -50,10 +47,6 @@ export default function DominioModal({ dominio, onClose }: DominioModalProps) {
 
     if (formData.prioridad < 1) {
       newErrors.prioridad = 'La prioridad debe ser al menos 1';
-    }
-
-    if (formData.usuariosActuales < 0) {
-      newErrors.usuariosActuales = 'Los usuarios actuales no pueden ser negativos';
     }
 
     setErrors(newErrors);
@@ -146,30 +139,6 @@ export default function DominioModal({ dominio, onClose }: DominioModalProps) {
             <p className="mt-1 text-xs text-gray-500">
               Mayor prioridad = mayor probabilidad de ser seleccionado
             </p>
-          </div>
-
-          {/* Usuarios Actuales */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Usuarios Actuales
-            </label>
-            <input
-              type="number"
-              value={formData.usuariosActuales}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  usuariosActuales: parseInt(e.target.value) || 0,
-                })
-              }
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                errors.usuariosActuales ? 'border-red-500' : 'border-gray-300'
-              }`}
-              min={0}
-            />
-            {errors.usuariosActuales && (
-              <p className="mt-1 text-sm text-red-500">{errors.usuariosActuales}</p>
-            )}
           </div>
 
           {/* Estado */}
