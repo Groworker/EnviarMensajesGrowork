@@ -17,11 +17,17 @@ async function runMigrations() {
     await client.connect();
     console.log('✅ Conectado exitosamente\n');
 
-    // Read SQL file (use fix-triggers.sql if it exists, otherwise run-migrations.sql)
-    const fixTriggersPath = path.join(__dirname, 'fix-triggers.sql');
-    const runMigrationsPath = path.join(__dirname, 'run-migrations.sql');
-
-    const sqlFilePath = fs.existsSync(fixTriggersPath) ? fixTriggersPath : runMigrationsPath;
+    // Read SQL file (priority: create-dominios.sql > fix-triggers.sql > run-migrations.sql)
+    const candidates = [
+      path.join(__dirname, 'create-dominios.sql'),
+      path.join(__dirname, 'fix-triggers.sql'),
+      path.join(__dirname, 'run-migrations.sql'),
+    ];
+    const sqlFilePath = candidates.find(f => fs.existsSync(f));
+    if (!sqlFilePath) {
+      console.error('No SQL file found');
+      process.exit(1);
+    }
     const sql = fs.readFileSync(sqlFilePath, 'utf8');
 
     console.log(`📄 Ejecutando: ${path.basename(sqlFilePath)}\n`);
@@ -46,7 +52,7 @@ async function runMigrations() {
       SELECT table_name
       FROM information_schema.tables
       WHERE table_schema = 'public'
-      AND table_name IN ('client_workflow_states', 'cv_creators')
+      AND table_name IN ('client_workflow_states', 'cv_creators', 'dominios')
       ORDER BY table_name;
     `;
 

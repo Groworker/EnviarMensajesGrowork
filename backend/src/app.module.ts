@@ -27,6 +27,8 @@ import { Notification } from './notifications/entities/notification.entity';
 import { ClientWorkflowState } from './entities/client-workflow-state.entity';
 import { CvCreator } from './entities/cv-creator.entity';
 import { CvCreatorsModule } from './cv-creators/cv-creators.module';
+import { Dominio } from './entities/dominio.entity';
+import { DominiosModule } from './dominios/dominios.module';
 import configuration from './config/configuration';
 import { envValidationSchema } from './config/env.validation';
 
@@ -64,6 +66,7 @@ import { envValidationSchema } from './config/env.validation';
           Notification,
           ClientWorkflowState,
           CvCreator,
+          Dominio,
         ],
         synchronize: false, // We will use migrations
         ssl: configService.get<string>('DATABASE_SSL') === 'true',
@@ -81,6 +84,7 @@ import { envValidationSchema } from './config/env.validation';
     N8nModule,
     WorkflowStateModule,
     CvCreatorsModule,
+    DominiosModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -16,6 +16,7 @@ export default function Navbar() {
         { href: '/clients', label: 'Clientes' },
         { href: '/notifications', label: 'Notificaciones' },
         { href: '/cv-creators', label: 'Creadores CV' },
+        { href: '/dominios', label: 'Dominios' },
         { href: '/preview-emails', label: 'Preview Emails' },
         { href: '/responses', label: 'Respuestas' },
     ];

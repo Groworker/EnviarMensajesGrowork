@@ -16,6 +16,7 @@ interface N8nWebhookPayload {
     event: string;
     clientId?: number;
     zohoId?: string;
+    folderId?: string; // Google Drive folder ID for lookup
     clientName?: string;
     data?: Record<string, any>;
     timestamp: string;
@@ -83,13 +84,28 @@ export class N8nController {
                 }
             }
 
+            // If folderId is provided but not clientId (for WKF-1.2), lookup by folder ID
+            if (!clientId && payload.folderId) {
+                const client = await this.clientsRepository.findOne({
+                    where: { idCarpetaCliente: payload.folderId },
+                });
+
+                if (client) {
+                    clientId = client.id;
+                    this.logger.log(`Resolved folderId ${payload.folderId} to clientId ${clientId}`);
+                } else {
+                    this.logger.warn(`No client found for folderId ${payload.folderId}`);
+                }
+            }
+
             // Map workflow IDs to notification types and workflow types
             const typeMap: Record<string, NotificationType> = {
                 'BuL088npiVZ6gak7': NotificationType.WORKFLOW_WKF1, // Old ID
                 'AMtg259bLLwhgbUL': NotificationType.WORKFLOW_WKF1, // New ID
                 'Ze3INzogY594XOCg': NotificationType.WORKFLOW_WKF1_1, // Old ID
                 'xCcVhFUwAmDJ4JOT': NotificationType.WORKFLOW_WKF1_1, // New ID
-                'Ajfl4VnlJbPlA03E': NotificationType.WORKFLOW_WKF1_2,
+                'Ajfl4VnlJbPlA03E': NotificationType.WORKFLOW_WKF1_2, // Old ID
+                'beNsoQ2JZOdtusf2': NotificationType.WORKFLOW_WKF1_2, // New ID
                 'EoSIHDe8HPHQrUWT': NotificationType.WORKFLOW_WKF1_3,
                 '49XoEhgqjyRt3LSg': NotificationType.WORKFLOW_WKF4,
             };
@@ -99,7 +115,8 @@ export class N8nController {
                 'AMtg259bLLwhgbUL': WorkflowType.WKF_1, // New ID
                 'Ze3INzogY594XOCg': WorkflowType.WKF_1_1, // Old ID
                 'xCcVhFUwAmDJ4JOT': WorkflowType.WKF_1_1, // New ID
-                'Ajfl4VnlJbPlA03E': WorkflowType.WKF_1_2,
+                'Ajfl4VnlJbPlA03E': WorkflowType.WKF_1_2, // Old ID
+                'beNsoQ2JZOdtusf2': WorkflowType.WKF_1_2, // New ID
                 'EoSIHDe8HPHQrUWT': WorkflowType.WKF_1_3,
                 '49XoEhgqjyRt3LSg': WorkflowType.WKF_4,
             };
