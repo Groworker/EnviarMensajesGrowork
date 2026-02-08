@@ -107,7 +107,8 @@ export class N8nController {
                 'Ajfl4VnlJbPlA03E': NotificationType.WORKFLOW_WKF1_2, // Old ID
                 'beNsoQ2JZOdtusf2': NotificationType.WORKFLOW_WKF1_2, // New ID
                 'EoSIHDe8HPHQrUWT': NotificationType.WORKFLOW_WKF1_3,
-                '49XoEhgqjyRt3LSg': NotificationType.WORKFLOW_WKF4,
+                '49XoEhgqjyRt3LSg': NotificationType.WORKFLOW_WKF4, // Old ID
+                'ItDz2wWOVJbusbXV': NotificationType.WORKFLOW_WKF4, // New ID
             };
 
             const workflowTypeMap: Record<string, WorkflowType> = {
@@ -118,7 +119,8 @@ export class N8nController {
                 'Ajfl4VnlJbPlA03E': WorkflowType.WKF_1_2, // Old ID
                 'beNsoQ2JZOdtusf2': WorkflowType.WKF_1_2, // New ID
                 'EoSIHDe8HPHQrUWT': WorkflowType.WKF_1_3,
-                '49XoEhgqjyRt3LSg': WorkflowType.WKF_4,
+                '49XoEhgqjyRt3LSg': WorkflowType.WKF_4, // Old ID
+                'ItDz2wWOVJbusbXV': WorkflowType.WKF_4, // New ID
             };
 
             const notificationType = typeMap[payload.workflowId] || NotificationType.SYSTEM;
