@@ -15,6 +15,7 @@ interface FormData {
   dominio: string;
   activo: boolean;
   prioridad: number;
+  maxUsuarios: number;
 }
 
 export default function DominioModal({ dominio, onClose }: DominioModalProps) {
@@ -22,6 +23,7 @@ export default function DominioModal({ dominio, onClose }: DominioModalProps) {
     dominio: '',
     activo: true,
     prioridad: 1,
+    maxUsuarios: 3,
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -32,6 +34,7 @@ export default function DominioModal({ dominio, onClose }: DominioModalProps) {
         dominio: dominio.dominio,
         activo: dominio.activo,
         prioridad: dominio.prioridad,
+        maxUsuarios: dominio.maxUsuarios ?? 3,
       });
     }
   }, [dominio]);
@@ -47,6 +50,10 @@ export default function DominioModal({ dominio, onClose }: DominioModalProps) {
 
     if (formData.prioridad < 1) {
       newErrors.prioridad = 'La prioridad debe ser al menos 1';
+    }
+
+    if (formData.maxUsuarios < 1) {
+      newErrors.maxUsuarios = 'El maximo de usuarios debe ser al menos 1';
     }
 
     setErrors(newErrors);
@@ -138,6 +145,30 @@ export default function DominioModal({ dominio, onClose }: DominioModalProps) {
             )}
             <p className="mt-1 text-xs text-gray-500">
               Mayor prioridad = mayor probabilidad de ser seleccionado
+            </p>
+          </div>
+
+          {/* Max Usuarios */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Max. Usuarios por Dominio
+            </label>
+            <input
+              type="number"
+              value={formData.maxUsuarios}
+              onChange={(e) =>
+                setFormData({ ...formData, maxUsuarios: parseInt(e.target.value) || 1 })
+              }
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                errors.maxUsuarios ? 'border-red-500' : 'border-gray-300'
+              }`}
+              min={1}
+            />
+            {errors.maxUsuarios && (
+              <p className="mt-1 text-sm text-red-500">{errors.maxUsuarios}</p>
+            )}
+            <p className="mt-1 text-xs text-gray-500">
+              Numero maximo de usuarios que se pueden crear en este dominio
             </p>
           </div>
 

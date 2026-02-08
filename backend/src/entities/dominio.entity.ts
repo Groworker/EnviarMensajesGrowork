@@ -25,6 +25,9 @@ export class Dominio {
   @Column({ name: 'usuarios_actuales', type: 'int', default: 0, nullable: true })
   usuariosActuales: number;
 
+  @Column({ name: 'max_usuarios', type: 'int', default: 3 })
+  maxUsuarios: number;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

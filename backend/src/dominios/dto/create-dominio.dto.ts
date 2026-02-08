@@ -13,4 +13,9 @@ export class CreateDominioDto {
   @Min(1)
   @IsOptional()
   prioridad?: number;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  maxUsuarios?: number;
 }

@@ -12,6 +12,7 @@ export interface Dominio {
   activo: boolean;
   prioridad: number;
   usuariosActuales: number | null;
+  maxUsuarios: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -128,6 +129,9 @@ export default function DominiosPage() {
                 Usuarios Actuales
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Max. Usuarios
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Fecha de Creacion
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -138,7 +142,7 @@ export default function DominiosPage() {
           <tbody className="bg-white divide-y divide-gray-200">
             {dominios.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
                   No hay dominios registrados. Haz clic en "Agregar Dominio" para comenzar.
                 </td>
               </tr>
@@ -178,6 +182,11 @@ export default function DominiosPage() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
                       {dominio.usuariosActuales ?? 0}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {dominio.maxUsuarios}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
