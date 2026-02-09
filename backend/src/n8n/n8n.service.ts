@@ -61,6 +61,7 @@ export class N8nService {
         cliente: client ? `${client.nombre || ''} ${client.apellido || ''}`.trim() : undefined,
         id_contacto: client?.zohoId || undefined, // Alias for n8n compatibility
         idioma_cv: client?.idiomaCV || undefined, // Language of CV for creator assignment
+        mailCorporativo: client?.emailOperativo || '',
         workflowType,
         timestamp: new Date().toISOString(),
         ...additionalData,
