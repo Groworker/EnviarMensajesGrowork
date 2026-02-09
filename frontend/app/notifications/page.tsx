@@ -35,6 +35,7 @@ export interface ClientWorkflowCard {
   driveFolder: string | null;
   oldFolderId: string | null;
   hasFilesInOldFolder: boolean;
+  cvCreatorName: string | null;
   currentWorkflow: string;
   allWorkflows: WorkflowState[];
 }

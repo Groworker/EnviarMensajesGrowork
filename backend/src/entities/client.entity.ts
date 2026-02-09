@@ -6,8 +6,11 @@ import {
   UpdateDateColumn,
   Index,
   OneToOne,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { ClientSendSettings } from './client-send-settings.entity';
+import { CvCreator } from './cv-creator.entity';
 
 @Entity('clients')
 export class Client {
@@ -51,6 +54,13 @@ export class Client {
 
   @Column({ name: 'idioma_cv', length: 50, nullable: true })
   idiomaCV: string;
+
+  @Column({ name: 'cv_creator_id', nullable: true })
+  cvCreatorId: number | null;
+
+  @ManyToOne(() => CvCreator, { nullable: true })
+  @JoinColumn({ name: 'cv_creator_id' })
+  cvCreator: CvCreator | null;
 
   // Old folder IDs kept for compatibility
   @Column({ name: 'id_carpeta_old', length: 200, nullable: true })

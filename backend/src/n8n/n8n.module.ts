@@ -5,11 +5,12 @@ import { N8nController } from './n8n.controller';
 import { N8nService } from './n8n.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { Client } from '../entities/client.entity';
+import { CvCreator } from '../entities/cv-creator.entity';
 import { WorkflowStateModule } from '../workflow-state/workflow-state.module';
 
 @Module({
     imports: [
-        TypeOrmModule.forFeature([Client]),
+        TypeOrmModule.forFeature([Client, CvCreator]),
         ConfigModule,
         NotificationsModule,
         forwardRef(() => WorkflowStateModule),

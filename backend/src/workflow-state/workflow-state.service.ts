@@ -30,6 +30,7 @@ export interface ClientWorkflowCard {
   driveFolder: string | null;
   oldFolderId: string | null;
   hasFilesInOldFolder: boolean;
+  cvCreatorName: string | null;
   currentWorkflow: WorkflowType;
   allWorkflows: WorkflowState[];
 }
@@ -71,7 +72,7 @@ export class WorkflowStateService {
   async getWorkflowPipeline(): Promise<PipelineColumn[]> {
     // Get all clients with their workflow states
     const clients = await this.clientRepository.find({
-      relations: ['sendSettings'],
+      relations: ['sendSettings', 'cvCreator'],
       order: { id: 'ASC' },
     });
 
@@ -204,6 +205,7 @@ export class WorkflowStateService {
         driveFolder: client.idCarpetaCliente,
         oldFolderId: client.idCarpetaOld || null,
         hasFilesInOldFolder,
+        cvCreatorName: client.cvCreator?.nombre || null,
         currentWorkflow: currentWorkflow || WorkflowType.WKF_4, // If all complete, show last workflow
         allWorkflows,
       };

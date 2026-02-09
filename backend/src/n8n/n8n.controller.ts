@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/entities/notification.entity';
 import { Client } from '../entities/client.entity';
+import { CvCreator } from '../entities/cv-creator.entity';
 import { WorkflowStateService } from '../workflow-state/workflow-state.service';
 import {
     WorkflowType,
@@ -34,6 +35,8 @@ export class N8nController {
         private readonly workflowStateService: WorkflowStateService,
         @InjectRepository(Client)
         private readonly clientsRepository: Repository<Client>,
+        @InjectRepository(CvCreator)
+        private readonly cvCreatorRepository: Repository<CvCreator>,
     ) { }
 
     @Post('webhook')
@@ -138,12 +141,50 @@ export class N8nController {
                 clientId,
                 {
                     event: payload.event,
-                    zohoId: payload.zohoId,
+                    zohoId: zohoId,
                     ...payload.data,
                 },
             );
 
             this.logger.log(`Notification created for workflow ${payload.workflowId}`);
+
+            // Update client with CV creator if WKF-1.1 completed successfully
+            if (clientId && payload.event === 'creador_asignado' && payload.status === 'success') {
+                const creadorEmail = payload.data?.creador_email;
+                const creadorNombre = payload.data?.creador_nombre;
+
+                if (creadorEmail) {
+                    try {
+                        // Find or create CV creator by email
+                        let creator = await this.cvCreatorRepository.findOne({
+                            where: { email: creadorEmail },
+                        });
+
+                        if (!creator) {
+                            // Create new creator if not found
+                            creator = this.cvCreatorRepository.create({
+                                nombre: creadorNombre || creadorEmail,
+                                email: creadorEmail,
+                                activo: true,
+                            });
+                            await this.cvCreatorRepository.save(creator);
+                            this.logger.log(`Created new CV creator: ${creator.nombre} (${creator.email})`);
+                        }
+
+                        // Update client with creator foreign key
+                        await this.clientsRepository.update(clientId, {
+                            cvCreatorId: creator.id,
+                        });
+                        this.logger.log(
+                            `Updated client ${clientId} with CV creator ID: ${creator.id} (${creator.nombre})`,
+                        );
+                    } catch (error: any) {
+                        this.logger.error(
+                            `Failed to update client ${clientId} with creator info: ${error.message}`,
+                        );
+                    }
+                }
+            }
 
             // Update workflow state if clientId and workflowType are available
             if (clientId && workflowType) {

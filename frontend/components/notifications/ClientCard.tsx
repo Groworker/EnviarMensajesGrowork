@@ -80,6 +80,15 @@ export default function ClientCard({
           Estado: <span className="font-medium">{client.estado}</span>
         </div>
 
+        {/* CV Creator */}
+        {client.cvCreatorName && (
+          <div className="text-xs mb-2">
+            <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-300">
+              👤 Creador CV: {client.cvCreatorName}
+            </span>
+          </div>
+        )}
+
         {/* Executed Date */}
         {client.executedAt && (
           <div className="text-xs text-gray-500 mb-2">

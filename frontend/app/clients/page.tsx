@@ -1558,6 +1558,7 @@ export default function ClientsPage() {
                             <th className="px-3 py-3 font-medium text-gray-500 text-center w-16">Stats</th>
                             <th className="px-6 py-3 font-medium text-gray-500">Info Cliente</th>
                             <th className="px-6 py-3 font-medium text-gray-500">Estado CRM</th>
+                            <th className="px-6 py-3 font-medium text-gray-500">Creador CV</th>
                             <th className="px-6 py-3 font-medium text-gray-500">Estado Envío</th>
                             <th className="px-6 py-3 font-medium text-gray-500">Modo</th>
                             <th className="px-6 py-3 font-medium text-gray-500">Warmup (Act / Obj)</th>
@@ -1643,6 +1644,11 @@ export default function ClientsPage() {
                                             {client.estado === 'Closed' && client.motivoCierre && (
                                                 <div className="text-xs text-gray-500 mt-1">{client.motivoCierre}</div>
                                             )}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="text-sm text-gray-700">
+                                                {client.cvCreatorName || <span className="text-gray-400 italic">-</span>}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <button
