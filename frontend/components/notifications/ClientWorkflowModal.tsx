@@ -67,33 +67,7 @@ export default function ClientWorkflowModal({
     }
   };
 
-  const handleExecuteWorkflow = async () => {
-    if (!client.nextWorkflow) return;
 
-    setIsExecuting(true);
-    try {
-      const response = await api.post(
-        `/workflow-states/${client.clientId}/${client.nextWorkflow}/execute`
-      );
-
-      if (response.data.success) {
-        toast.success(
-          `Workflow ${client.nextWorkflow} ejecutado correctamente`
-        );
-        onRefresh();
-        onClose();
-      } else {
-        toast.error(
-          response.data.error || 'Error al ejecutar el workflow'
-        );
-      }
-    } catch (error: any) {
-      console.error('Error executing workflow:', error);
-      toast.error('Error al ejecutar el workflow');
-    } finally {
-      setIsExecuting(false);
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -222,41 +196,10 @@ export default function ClientWorkflowModal({
               </div>
             )}
 
-            {/* Next Workflow */}
-            {client.nextWorkflow && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Siguiente Workflow
-                </label>
-                <p className="text-gray-900 font-medium">{client.nextWorkflow}</p>
-              </div>
-            )}
+
           </div>
 
-          {/* Footer Actions */}
-          {requiresManualAction && client.status === 'OK' && client.nextWorkflow && (
-            <div className="flex gap-3 p-6 border-t border-gray-200 bg-gray-50">
-              <button
-                onClick={handleOpenFolder}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <FolderOpen size={18} />
-                <span>Abrir Carpeta</span>
-              </button>
-              <button
-                onClick={handleExecuteWorkflow}
-                disabled={isExecuting}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
-              >
-                <Play size={18} />
-                <span>
-                  {isExecuting
-                    ? 'Ejecutando...'
-                    : `Ejecutar ${client.nextWorkflow}`}
-                </span>
-              </button>
-            </div>
-          )}
+
         </div>
       </div>
     </div>
