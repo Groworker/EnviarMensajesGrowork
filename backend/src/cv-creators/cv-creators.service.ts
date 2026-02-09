@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CvCreator } from '../entities/cv-creator.entity';
+import { Client } from '../entities/client.entity';
 import { CreateCvCreatorDto, UpdateCvCreatorDto } from './dto';
 
 @Injectable()
@@ -11,6 +12,8 @@ export class CvCreatorsService {
   constructor(
     @InjectRepository(CvCreator)
     private readonly cvCreatorsRepository: Repository<CvCreator>,
+    @InjectRepository(Client)
+    private readonly clientRepository: Repository<Client>,
   ) {}
 
   /**
@@ -96,6 +99,71 @@ export class CvCreatorsService {
 
     const creator = await this.findOne(id);
     await this.cvCreatorsRepository.remove(creator);
+  }
+
+  async getCreatorStats(id: number): Promise<{
+    creator: CvCreator;
+    stats: { total: number; pendiente: number; en_proceso: number; finalizado: number; cancelado: number };
+    clients: Client[];
+  }> {
+    const creator = await this.findOne(id);
+
+    const clients = await this.clientRepository.find({
+      where: { cvCreatorId: id },
+      order: { createdAt: 'DESC' },
+    });
+
+    const activeClients = clients.filter(c => !c.deletedAt);
+
+    const stats = {
+      total: activeClients.length,
+      pendiente: activeClients.filter(c => c.cvStatus === 'pendiente').length,
+      en_proceso: activeClients.filter(c => c.cvStatus === 'en_proceso').length,
+      finalizado: activeClients.filter(c => c.cvStatus === 'finalizado').length,
+      cancelado: activeClients.filter(c => c.cvStatus === 'cancelado').length,
+    };
+
+    return { creator, stats, clients: activeClients };
+  }
+
+  async getStatsSummary(): Promise<{
+    totalAsignados: number;
+    pendiente: number;
+    enProceso: number;
+    finalizado: number;
+    cancelado: number;
+    sinAsignar: number;
+  }> {
+    const assigned = await this.clientRepository
+      .createQueryBuilder('client')
+      .select('client.cv_status', 'cvStatus')
+      .addSelect('COUNT(*)', 'count')
+      .where('client.deleted_at IS NULL')
+      .andWhere('client.cv_creator_id IS NOT NULL')
+      .groupBy('client.cv_status')
+      .getRawMany();
+
+    const sinAsignar = await this.clientRepository
+      .createQueryBuilder('client')
+      .where('client.deleted_at IS NULL')
+      .andWhere('client.cv_creator_id IS NULL')
+      .getCount();
+
+    const counts: Record<string, number> = {};
+    assigned.forEach(row => {
+      counts[row.cvStatus || 'pendiente'] = parseInt(row.count, 10);
+    });
+
+    const totalAsignados = Object.values(counts).reduce((sum, val) => sum + val, 0);
+
+    return {
+      totalAsignados,
+      pendiente: counts['pendiente'] || 0,
+      enProceso: counts['en_proceso'] || 0,
+      finalizado: counts['finalizado'] || 0,
+      cancelado: counts['cancelado'] || 0,
+      sinAsignar,
+    };
   }
 
   async findByIdioma(idioma: string): Promise<CvCreator[]> {

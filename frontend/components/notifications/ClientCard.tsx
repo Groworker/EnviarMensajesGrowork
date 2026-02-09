@@ -136,21 +136,23 @@ export default function ClientCard({
               <span>Ver Roadmap Completo</span>
             </button>
 
-            {/* Row 2: Abrir Carpeta OLD + Ejecutar Workflow */}
+            {/* Row 2: Abrir Carpeta + Ejecutar Workflow */}
             <div className="flex gap-2">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (client.oldFolderId) {
-                    window.open(`https://drive.google.com/drive/folders/${client.oldFolderId}`, '_blank');
+                  const folderId = client.currentWorkflow === 'WKF-1.3' ? client.newFolderId : client.oldFolderId;
+                  const folderName = client.currentWorkflow === 'WKF-1.3' ? 'NEW' : 'OLD';
+                  if (folderId) {
+                    window.open(`https://drive.google.com/drive/folders/${folderId}`, '_blank');
                   } else {
-                    toast.error('No hay carpeta OLD configurada');
+                    toast.error(`No hay carpeta ${folderName} configurada`);
                   }
                 }}
                 className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
               >
                 <FolderOpen size={14} />
-                <span>Carpeta OLD</span>
+                <span>{client.currentWorkflow === 'WKF-1.3' ? 'Carpeta NEW' : 'Carpeta OLD'}</span>
               </button>
 
               <button

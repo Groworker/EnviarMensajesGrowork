@@ -62,6 +62,9 @@ export class Client {
   @JoinColumn({ name: 'cv_creator_id' })
   cvCreator: CvCreator | null;
 
+  @Column({ name: 'cv_status', length: 20, default: 'pendiente' })
+  cvStatus: string;
+
   // Old folder IDs kept for compatibility
   @Column({ name: 'id_carpeta_old', length: 200, nullable: true })
   idCarpetaOld: string;

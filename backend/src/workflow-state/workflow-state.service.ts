@@ -29,6 +29,7 @@ export interface ClientWorkflowCard {
   metadata: Record<string, any> | null;
   driveFolder: string | null;
   oldFolderId: string | null;
+  newFolderId: string | null;
   hasFilesInOldFolder: boolean;
   cvCreatorName: string | null;
   currentWorkflow: WorkflowType;
@@ -204,6 +205,7 @@ export class WorkflowStateService {
         metadata: currentState?.metadata || null,
         driveFolder: client.idCarpetaCliente,
         oldFolderId: client.idCarpetaOld || null,
+        newFolderId: client.idCarpetaNew || null,
         hasFilesInOldFolder,
         cvCreatorName: client.cvCreator?.nombre || null,
         currentWorkflow: currentWorkflow || WorkflowType.WKF_4, // If all complete, show last workflow
@@ -285,6 +287,23 @@ export class WorkflowStateService {
     this.logger.log(
       `Updated workflow state for client ${clientId}: ${updateDto.workflowType} -> ${updateDto.status}`,
     );
+
+    // Auto-update cvStatus when WKF-1.3 completes successfully
+    if (
+      updateDto.workflowType === WorkflowType.WKF_1_3 &&
+      updateDto.status === WorkflowStatus.OK
+    ) {
+      const client = await this.clientRepository.findOne({
+        where: { id: clientId },
+      });
+      if (client) {
+        client.cvStatus = 'finalizado';
+        await this.clientRepository.save(client);
+        this.logger.log(
+          `Auto-updated cvStatus to 'finalizado' for client ${clientId} (WKF-1.3 OK)`,
+        );
+      }
+    }
 
     return savedState;
   }

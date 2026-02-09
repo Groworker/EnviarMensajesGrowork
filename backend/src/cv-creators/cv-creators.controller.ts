@@ -25,10 +25,22 @@ export class CvCreatorsController {
     return this.cvCreatorsService.findAll(idioma);
   }
 
+  @Get('stats/summary')
+  async getStatsSummary() {
+    this.logger.log('GET /cv-creators/stats/summary');
+    return this.cvCreatorsService.getStatsSummary();
+  }
+
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     this.logger.log(`GET /cv-creators/${id}`);
     return this.cvCreatorsService.findOne(id);
+  }
+
+  @Get(':id/stats')
+  async getCreatorStats(@Param('id', ParseIntPipe) id: number) {
+    this.logger.log(`GET /cv-creators/${id}/stats`);
+    return this.cvCreatorsService.getCreatorStats(id);
   }
 
   @Post()

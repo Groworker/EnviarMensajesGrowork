@@ -34,6 +34,7 @@ export interface ClientWorkflowCard {
   metadata: Record<string, any> | null;
   driveFolder: string | null;
   oldFolderId: string | null;
+  newFolderId: string | null;
   hasFilesInOldFolder: boolean;
   cvCreatorName: string | null;
   currentWorkflow: string;
