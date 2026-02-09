@@ -68,7 +68,7 @@ export class Client {
   @Column({ length: 100, nullable: true })
   estado: string;
 
-  @Column({ name: 'motivo_cierre', length: 100, nullable: true })
+  @Column({ name: 'motivo_cierre', type: 'varchar', length: 100, nullable: true })
   motivoCierre: string | null;
 
   @Column({ type: 'jsonb', name: 'paises_interes', nullable: true })
