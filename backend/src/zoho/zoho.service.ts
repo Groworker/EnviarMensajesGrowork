@@ -25,6 +25,7 @@ export interface ZohoContact {
   Email_operativo: string | null;
   Industria: string | null;
   Puesto_objetivo: string | null;
+  Idioma_que_quiere_CV: string | null;
   Pa_ses_de_inter_s: string[] | null;
   Ciudad_objetivo: string[] | null;
   id_CARPETA_CLIENTE: string | null;
@@ -231,6 +232,7 @@ export class ZohoService {
     'Email_operativo',
     'Industria',
     'Puesto_objetivo',
+    'Idioma_que_quiere_CV',
     'Pa_ses_de_inter_s',
     'Ciudad_objetivo',
     'id_CARPETA_CLIENTE',

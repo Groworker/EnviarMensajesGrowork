@@ -49,6 +49,9 @@ export class Client {
   @Column({ name: 'id_carpeta_cv', length: 200, nullable: true })
   idCarpetaCv: string;
 
+  @Column({ name: 'idioma_cv', length: 50, nullable: true })
+  idiomaCV: string;
+
   // Old folder IDs kept for compatibility
   @Column({ name: 'id_carpeta_old', length: 200, nullable: true })
   idCarpetaOld: string;

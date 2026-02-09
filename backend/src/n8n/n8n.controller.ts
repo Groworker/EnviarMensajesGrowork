@@ -43,25 +43,29 @@ export class N8nController {
         try {
             let clientId = payload.clientId;
 
+            // Support alternative field names from n8n
+            const zohoId = payload.zohoId || (payload as any).id_contacto;
+            const clientName = payload.clientName || (payload as any).cliente;
+
             // If zohoId is provided but not clientId, lookup the client
-            if (!clientId && payload.zohoId) {
+            if (!clientId && zohoId) {
                 let client = await this.clientsRepository.findOne({
-                    where: { zohoId: payload.zohoId },
+                    where: { zohoId },
                 });
 
                 if (client) {
                     clientId = client.id;
-                    this.logger.log(`Resolved zohoId ${payload.zohoId} to clientId ${clientId}`);
+                    this.logger.log(`Resolved zohoId ${zohoId} to clientId ${clientId}`);
                 } else {
                     // Client doesn't exist yet - create it automatically
                     // This can happen when WKF-1 executes before WKF-4
-                    this.logger.log(`Client not found for zohoId ${payload.zohoId}, creating basic client record`);
+                    this.logger.log(`Client not found for zohoId ${zohoId}, creating basic client record`);
 
                     try {
                         const newClient = this.clientsRepository.create({
-                            zohoId: payload.zohoId,
-                            nombre: payload.clientName?.split(' ')[0] || '',
-                            apellido: payload.clientName?.split(' ').slice(1).join(' ') || '',
+                            zohoId,
+                            nombre: clientName?.split(' ')[0] || '',
+                            apellido: clientName?.split(' ').slice(1).join(' ') || '',
                             emailOperativo: payload.data?.email || null,
                             idCarpetaCliente: payload.data?.carpetaCliente || null,
                             idCarpetaCv: payload.data?.carpetaCV || null,
@@ -72,13 +76,13 @@ export class N8nController {
                         const savedClient = await this.clientsRepository.save(newClient);
                         client = savedClient;
                         clientId = savedClient.id;
-                        this.logger.log(`Created new client with ID ${clientId} for zohoId ${payload.zohoId}`);
+                        this.logger.log(`Created new client with ID ${clientId} for zohoId ${zohoId}`);
 
                         // Initialize workflow states for the new client
                         await this.workflowStateService.initializeClientStates(clientId);
                         this.logger.log(`Initialized workflow states for client ${clientId}`);
                     } catch (createError: any) {
-                        this.logger.error(`Failed to create client for zohoId ${payload.zohoId}: ${createError.message}`);
+                        this.logger.error(`Failed to create client for zohoId ${zohoId}: ${createError.message}`);
                         // Continue without clientId - the notification will still be created but won't be associated with a client
                     }
                 }

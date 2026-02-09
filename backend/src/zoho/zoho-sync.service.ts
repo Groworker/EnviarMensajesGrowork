@@ -276,6 +276,9 @@ export class ZohoSyncService {
     if (zoho.Puesto_objetivo !== undefined) {
       client.jobTitle = zoho.Puesto_objetivo as string;
     }
+    if (zoho.Idioma_que_quiere_CV !== undefined) {
+      client.idiomaCV = zoho.Idioma_que_quiere_CV as string;
+    }
 
     // Handle multi-select fields
     // Zoho can return array directly or as { values: [...] }

@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import axios from 'axios';
 import { WorkflowType } from '../entities/client-workflow-state.entity';
+import { Client } from '../entities/client.entity';
 
 @Injectable()
 export class N8nService {
@@ -19,7 +22,11 @@ export class N8nService {
     [WorkflowType.WKF_4]: '', // Auto-triggered from Zoho CRM, no manual trigger needed
   };
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    @InjectRepository(Client)
+    private readonly clientRepository: Repository<Client>,
+  ) {
     this.n8nBaseUrl = this.configService.get<string>('N8N_BASE_URL', '');
     this.n8nApiKey = this.configService.get<string>('N8N_API_KEY', '');
   }
@@ -45,8 +52,15 @@ export class N8nService {
         `Triggering workflow ${workflowType} for client ${clientId}`,
       );
 
+      // Fetch client details from database to include in payload
+      const client = await this.clientRepository.findOne({ where: { id: clientId } });
+
       const payload = {
         clientId,
+        zohoId: client?.zohoId || undefined,
+        cliente: client ? `${client.nombre || ''} ${client.apellido || ''}`.trim() : undefined,
+        id_contacto: client?.zohoId || undefined, // Alias for n8n compatibility
+        idioma_cv: client?.idiomaCV || undefined, // Language of CV for creator assignment
         workflowType,
         timestamp: new Date().toISOString(),
         ...additionalData,
