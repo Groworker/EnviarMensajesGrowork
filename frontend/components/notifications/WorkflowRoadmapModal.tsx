@@ -23,6 +23,7 @@ export interface RoadmapModalProps {
     driveFolder: string | null;
     allWorkflows: WorkflowState[];
     onRefresh?: () => void;
+    cvCreatorName?: string | null;
 }
 
 const WORKFLOW_TITLES: Record<string, { title: string; description: string; requiresManualAction: boolean }> = {
@@ -42,6 +43,7 @@ export default function WorkflowRoadmapModal({
     driveFolder,
     allWorkflows,
     onRefresh,
+    cvCreatorName,
 }: RoadmapModalProps) {
     const [executingWorkflow, setExecutingWorkflow] = useState<string | null>(null);
 
@@ -159,6 +161,15 @@ export default function WorkflowRoadmapModal({
                                                         {workflow.status}
                                                     </span>
                                                 </div>
+
+                                                {/* CV Creator for WKF-1.1 */}
+                                                {workflow.workflowType === 'WKF-1.1' && cvCreatorName && (
+                                                    <div className="mt-2">
+                                                        <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700 border border-blue-300">
+                                                            👤 Creador CV: {cvCreatorName}
+                                                        </span>
+                                                    </div>
+                                                )}
 
                                                 {/* Execution Details */}
                                                 {workflow.executedAt && (

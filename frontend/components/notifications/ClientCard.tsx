@@ -224,6 +224,7 @@ export default function ClientCard({
         driveFolder={client.driveFolder}
         allWorkflows={client.allWorkflows}
         onRefresh={onRefresh}
+        cvCreatorName={client.cvCreatorName}
       />
     </>
   );
