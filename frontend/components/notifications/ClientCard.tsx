@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ClientWorkflowCard } from '@/app/notifications/page';
-import { ExternalLink, FolderOpen, ListOrdered } from 'lucide-react';
+import { ExternalLink, FolderOpen, ListOrdered, Play } from 'lucide-react';
 import WorkflowRoadmapModal from './WorkflowRoadmapModal';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -101,17 +101,94 @@ export default function ClientCard({
           </div>
         )}
 
-        {/* View Roadmap Button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsModalOpen(true);
-          }}
-          className="flex items-center justify-center gap-1 px-2 py-1.5 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 transition-colors w-full mt-3"
-        >
-          <ListOrdered size={14} />
-          <span>Ver Roadmap Completo</span>
-        </button>
+        {/* Buttons Section */}
+        {(client.currentWorkflow === 'WKF-1.1' || client.currentWorkflow === 'WKF-1.3') && client.status === 'PENDING' ? (
+          // 3-button layout for manual workflows
+          <div className="space-y-2">
+            {/* Row 1: Ver Roadmap Completo */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsModalOpen(true);
+              }}
+              className="flex items-center justify-center gap-1 px-2 py-1.5 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 transition-colors w-full"
+            >
+              <ListOrdered size={14} />
+              <span>Ver Roadmap Completo</span>
+            </button>
+
+            {/* Row 2: Abrir Carpeta OLD + Ejecutar Workflow */}
+            <div className="flex gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (client.oldFolderId) {
+                    window.open(`https://drive.google.com/drive/folders/${client.oldFolderId}`, '_blank');
+                  } else {
+                    toast.error('No hay carpeta OLD configurada');
+                  }
+                }}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+              >
+                <FolderOpen size={14} />
+                <span>Carpeta OLD</span>
+              </button>
+
+              <button
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  if (!client.hasFilesInOldFolder) {
+                    toast.error('Debes subir al menos 1 archivo a la carpeta OLD antes de ejecutar');
+                    return;
+                  }
+
+                  setIsExecuting(true);
+                  try {
+                    const response = await api.post(
+                      `/workflow-states/${client.clientId}/${client.currentWorkflow}/execute`
+                    );
+
+                    if (response.data.success) {
+                      toast.success(`Workflow ${client.currentWorkflow} ejecutado correctamente`);
+                      onRefresh();
+                    } else {
+                      toast.error(response.data.error || 'Error al ejecutar el workflow');
+                    }
+                  } catch (error: any) {
+                    console.error('Error executing workflow:', error);
+                    toast.error('Error al ejecutar el workflow');
+                  } finally {
+                    setIsExecuting(false);
+                  }
+                }}
+                disabled={isExecuting || !client.hasFilesInOldFolder}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Play size={14} />
+                <span>{isExecuting ? 'Ejecutando...' : 'Ejecutar'}</span>
+              </button>
+            </div>
+
+            {/* Warning if no files */}
+            {!client.hasFilesInOldFolder && (
+              <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                ⚠️ Sube el CV a la carpeta OLD primero
+              </div>
+            )}
+          </div>
+        ) : (
+          // Single button for other workflows
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsModalOpen(true);
+            }}
+            className="flex items-center justify-center gap-1 px-2 py-1.5 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 transition-colors w-full mt-3"
+          >
+            <ListOrdered size={14} />
+            <span>Ver Roadmap Completo</span>
+          </button>
+        )}
 
         {/* Execution URL Link */}
         {client.executionUrl && (

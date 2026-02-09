@@ -27,6 +27,8 @@ export interface ClientWorkflowCard {
   errorMessage: string | null;
   metadata: Record<string, any> | null;
   driveFolder: string | null;
+  oldFolderId: string | null;
+  hasFilesInOldFolder: boolean;
   currentWorkflow: WorkflowType;
   allWorkflows: WorkflowState[];
 }
@@ -179,6 +181,8 @@ export class WorkflowStateService {
         errorMessage: currentState?.errorMessage || null,
         metadata: currentState?.metadata || null,
         driveFolder: client.idCarpetaCliente,
+        oldFolderId: client.idCarpetaOld || null,
+        hasFilesInOldFolder: true, // Por ahora asumimos que siempre hay archivos - el frontend manejará la validación
         currentWorkflow: currentWorkflow || WorkflowType.WKF_4, // If all complete, show last workflow
         allWorkflows,
       };

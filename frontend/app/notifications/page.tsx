@@ -33,6 +33,8 @@ export interface ClientWorkflowCard {
   errorMessage: string | null;
   metadata: Record<string, any> | null;
   driveFolder: string | null;
+  oldFolderId: string | null;
+  hasFilesInOldFolder: boolean;
   currentWorkflow: string;
   allWorkflows: WorkflowState[];
 }
