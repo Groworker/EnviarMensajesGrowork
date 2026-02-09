@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Filter, Search, X } from 'lucide-react';
 import WorkflowColumn from '@/components/notifications/WorkflowColumn';
 import toast from 'react-hot-toast';
 
@@ -31,6 +31,8 @@ export default function NotificationsPage() {
   const [pipeline, setPipeline] = useState<PipelineColumn[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [clientFilter, setClientFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'' | 'OK' | 'PENDING' | 'ERROR'>('');
 
   const fetchPipeline = async (silent = false) => {
     try {
@@ -62,6 +64,20 @@ export default function NotificationsPage() {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Filter pipeline based on client and status filters
+  const filteredPipeline = pipeline.map(column => ({
+    ...column,
+    clients: column.clients.filter(client => {
+      const matchesClient = clientFilter === '' ||
+        client.clientName.toLowerCase().includes(clientFilter.toLowerCase());
+      const matchesStatus = statusFilter === '' || client.status === statusFilter;
+      return matchesClient && matchesStatus;
+    })
+  })).filter(column => column.clients.length > 0); // Only show columns with clients
+
+  const totalClientsCount = pipeline.reduce((sum, col) => sum + col.clients.length, 0);
+  const filteredClientsCount = filteredPipeline.reduce((sum, col) => sum + col.clients.length, 0);
 
   const handleRefresh = () => {
     fetchPipeline(true);
@@ -122,9 +138,65 @@ export default function NotificationsPage() {
         </div>
       </div>
 
+      {/* Filters Bar */}
+      <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="text-sm font-medium text-gray-600 flex items-center gap-1">
+            <Filter size={14} />
+            Filtros:
+          </span>
+
+          {/* Client Search */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Buscar cliente..."
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm w-64"
+              value={clientFilter}
+              onChange={(e) => setClientFilter(e.target.value)}
+            />
+            <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
+          </div>
+
+          {/* Status Filter */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Estado:</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as '' | 'OK' | 'PENDING' | 'ERROR')}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
+            >
+              <option value="">Todos</option>
+              <option value="OK">OK</option>
+              <option value="PENDING">Pendiente</option>
+              <option value="ERROR">Error</option>
+            </select>
+          </div>
+
+          {/* Clear Filters */}
+          {(clientFilter || statusFilter) && (
+            <button
+              onClick={() => {
+                setClientFilter('');
+                setStatusFilter('');
+              }}
+              className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition flex items-center gap-1"
+            >
+              <X size={14} />
+              Limpiar filtros
+            </button>
+          )}
+
+          {/* Results count */}
+          <span className="ml-auto text-sm text-gray-500">
+            {filteredClientsCount} de {totalClientsCount} clientes
+          </span>
+        </div>
+      </div>
+
       {/* Kanban Board */}
       <div className="flex gap-4 overflow-x-auto pb-6">
-        {pipeline.map((column) => (
+        {filteredPipeline.map((column) => (
           <WorkflowColumn
             key={column.workflowType}
             column={column}
@@ -133,9 +205,13 @@ export default function NotificationsPage() {
         ))}
       </div>
 
-      {pipeline.length === 0 && (
+      {filteredPipeline.length === 0 && (
         <div className="flex items-center justify-center h-64">
-          <p className="text-gray-500">No hay workflows para mostrar</p>
+          <p className="text-gray-500">
+            {clientFilter || statusFilter
+              ? 'No hay clientes que coincidan con los filtros'
+              : 'No hay workflows para mostrar'}
+          </p>
         </div>
       )}
     </div>
