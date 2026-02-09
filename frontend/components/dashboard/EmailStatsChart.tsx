@@ -129,8 +129,8 @@ export default function EmailStatsChart() {
                             <Tooltip
                                 cursor={{ fill: 'rgba(0,0,0,0.03)' }}
                                 content={({ active, payload, label }) => {
-                                    if (active && payload && payload.length) {
-                                        const d = new Date(label);
+                                    if (active && payload && payload.length && label) {
+                                        const d = new Date(String(label));
                                         return (
                                             <div className="bg-white shadow-lg rounded-lg px-4 py-3 border border-gray-100">
                                                 <p className="text-sm font-semibold text-gray-900 mb-1">
