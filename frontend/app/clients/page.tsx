@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { Search, Settings, Save, X, Info, AlertCircle, MapPin, Briefcase, Filter, BarChart3, Mail, CheckCircle, XCircle, Clock, AlertTriangle, MessageSquare, RefreshCw, RotateCcw, Inbox, Trash2 } from 'lucide-react';
-import { MultiSelectInput } from '@/components/MultiSelectInput';
+
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ClassificationBadge } from '@/components/ClassificationBadge';
 import { DeleteClientModal } from '@/components/DeleteClientModal';
@@ -1136,6 +1136,7 @@ export default function ClientsPage() {
                                                     >
                                                         <option value="contains">Contiene (recomendado)</option>
                                                         <option value="exact">Exacto</option>
+                                                        <option value="none">Ninguno (no filtrar por puesto)</option>
                                                     </select>
                                                     <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
                                                         <p className="text-xs text-gray-600 leading-relaxed">
