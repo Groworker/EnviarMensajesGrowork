@@ -205,7 +205,7 @@ export class ClientsService {
     try {
       // 1. Update in database first
       client.estado = nuevoEstado;
-      client.motivoCierre = nuevoEstado === 'Closed' ? updateEstadoDto.motivoCierre : null;
+      client.motivoCierre = nuevoEstado === 'Closed' ? (updateEstadoDto.motivoCierre ?? null) : null;
       const updatedClient = await this.clientRepository.save(client);
 
       this.logger.log(
