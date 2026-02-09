@@ -669,47 +669,6 @@ export default function ClientsPage() {
                         <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
                     </div>
                 </div>
-                <div className="mt-4 flex flex-wrap gap-3">
-                    {/* Estado Envío buttons */}
-                    <button
-                        onClick={handleActivateAll}
-                        className="inline-flex items-center gap-2 px-4 py-2 border border-green-300 bg-green-50 text-green-700 text-sm font-medium rounded-lg hover:bg-green-100 transition-colors"
-                    >
-                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                        Activar Envío (Todos)
-                    </button>
-                    <button
-                        onClick={handleDeactivateAll}
-                        className="inline-flex items-center gap-2 px-4 py-2 border border-yellow-300 bg-yellow-50 text-yellow-700 text-sm font-medium rounded-lg hover:bg-yellow-100 transition-colors"
-                    >
-                        <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
-                        Pausar Envío (Todos)
-                    </button>
-
-                    {/* Separador */}
-                    <div className="w-px h-8 bg-gray-300 self-center"></div>
-
-                    {/* Modo Preview buttons */}
-                    <button
-                        onClick={() => handleSetPreviewModeAll(true)}
-                        className="inline-flex items-center gap-2 px-4 py-2 border border-blue-300 bg-blue-50 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        Modo Preview (Todos)
-                    </button>
-                    <button
-                        onClick={() => handleSetPreviewModeAll(false)}
-                        className="inline-flex items-center gap-2 px-4 py-2 border border-orange-300 bg-orange-50 text-orange-700 text-sm font-medium rounded-lg hover:bg-orange-100 transition-colors"
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                        Envío Automático (Todos)
-                    </button>
-                </div>
             </header>
 
             {/* Filters Bar */}
@@ -1755,13 +1714,6 @@ export default function ClientsPage() {
                                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                                             >
                                                 <Settings size={20} />
-                                            </button>
-                                            <button
-                                                title="Eliminar cliente"
-                                                onClick={() => handleCheckDeletion(client)}
-                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition ml-1"
-                                            >
-                                                <Trash2 size={20} />
                                             </button>
                                         </td>
                                     </tr>
