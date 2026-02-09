@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Mail, CheckCircle, XCircle } from 'lucide-react';
 
 interface EmailStats {
     totalSent: number;
@@ -32,20 +33,19 @@ export default function EmailStatsChart() {
         }
 
         fetchStats();
-        // Refresh every 2 minutes
         const interval = setInterval(fetchStats, 120000);
         return () => clearInterval(interval);
     }, [days]);
 
     if (loading || !stats) {
         return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Estadísticas de Emails</CardTitle>
+            <Card className="h-full">
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-lg font-semibold text-gray-900">Estadísticas de Emails</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="h-96 flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    <div className="h-80 flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-10 w-10 border-2 border-gray-200 border-t-blue-600"></div>
                     </div>
                 </CardContent>
             </Card>
@@ -53,92 +53,130 @@ export default function EmailStatsChart() {
     }
 
     return (
-        <Card>
-            <CardHeader>
+        <Card className="h-full">
+            <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                     <div>
-                        <CardTitle>Estadísticas de Emails</CardTitle>
-                        <p className="text-sm text-gray-600 mt-1">
-                            Total: {stats.totalSent} | Exitosos: {stats.successCount} | Fallidos: {stats.failureCount}
-                        </p>
+                        <CardTitle className="text-lg font-semibold text-gray-900">Estadísticas de Emails</CardTitle>
+                        <p className="text-sm text-gray-500 mt-0.5">Rendimiento de envíos</p>
                     </div>
                     <Select value={days.toString()} onValueChange={(value) => setDays(parseInt(value))}>
-                        <SelectTrigger className="w-40">
+                        <SelectTrigger className="w-36 h-9 text-sm">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="7">Últimos 7 días</SelectItem>
-                            <SelectItem value="14">Últimos 14 días</SelectItem>
-                            <SelectItem value="30">Últimos 30 días</SelectItem>
-                            <SelectItem value="60">Últimos 60 días</SelectItem>
+                            <SelectItem value="7">7 días</SelectItem>
+                            <SelectItem value="14">14 días</SelectItem>
+                            <SelectItem value="30">30 días</SelectItem>
+                            <SelectItem value="60">60 días</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
             </CardHeader>
             <CardContent>
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                    <div className="p-4 bg-blue-50 rounded-lg">
-                        <p className="text-sm text-blue-600 font-medium">Total Enviados</p>
-                        <p className="text-2xl font-bold mt-1">{stats.totalSent}</p>
+                {/* Metric Cards */}
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
+                        <div className="p-2 rounded-lg bg-blue-50">
+                            <Mail className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-gray-900 leading-none">{stats.totalSent}</p>
+                            <p className="text-xs font-medium text-gray-500 mt-1">Enviados</p>
+                        </div>
                     </div>
-                    <div className="p-4 bg-green-50 rounded-lg">
-                        <p className="text-sm text-green-600 font-medium">Exitosos</p>
-                        <p className="text-2xl font-bold mt-1">{stats.successCount}</p>
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
+                        <div className="p-2 rounded-lg bg-emerald-50">
+                            <CheckCircle className="w-4 h-4 text-emerald-600" />
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-gray-900 leading-none">{stats.successCount}</p>
+                            <p className="text-xs font-medium text-gray-500 mt-1">Exitosos</p>
+                        </div>
                     </div>
-                    <div className="p-4 bg-red-50 rounded-lg">
-                        <p className="text-sm text-red-600 font-medium">Fallidos</p>
-                        <p className="text-2xl font-bold mt-1">{stats.failureCount}</p>
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
+                        <div className="p-2 rounded-lg bg-red-50">
+                            <XCircle className="w-4 h-4 text-red-500" />
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-gray-900 leading-none">{stats.failureCount}</p>
+                            <p className="text-xs font-medium text-gray-500 mt-1">Fallidos</p>
+                        </div>
                     </div>
                 </div>
 
-                <div className="h-80" style={{ minHeight: '320px', width: '100%' }}>
+                {/* Chart */}
+                <div style={{ height: '240px', width: '100%' }}>
                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={stats.byDay}>
-                            <CartesianGrid strokeDasharray="3 3" />
+                        <BarChart data={stats.byDay} barCategoryGap="20%">
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                             <XAxis
                                 dataKey="date"
-                                tickFormatter={(value) => new Date(value).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })}
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fontSize: 12, fill: '#9ca3af' }}
+                                tickFormatter={(value) => {
+                                    const d = new Date(value);
+                                    return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+                                }}
                             />
-                            <YAxis />
+                            <YAxis
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fontSize: 12, fill: '#9ca3af' }}
+                                allowDecimals={false}
+                            />
                             <Tooltip
-                                labelFormatter={(value) => new Date(value).toLocaleDateString('es-ES')}
-                                formatter={(value: number | undefined, name: string | undefined) => {
-                                    if (value === undefined || name === undefined) return [0, ''];
-                                    const labels: Record<string, string> = {
-                                        success: 'Exitosos',
-                                        failed: 'Fallidos',
-                                        sent: 'Enviados'
-                                    };
-                                    return [value, labels[name] || name];
+                                cursor={{ fill: 'rgba(0,0,0,0.03)' }}
+                                content={({ active, payload, label }) => {
+                                    if (active && payload && payload.length) {
+                                        const d = new Date(label);
+                                        return (
+                                            <div className="bg-white shadow-lg rounded-lg px-4 py-3 border border-gray-100">
+                                                <p className="text-sm font-semibold text-gray-900 mb-1">
+                                                    {d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'long' })}
+                                                </p>
+                                                {payload.map((entry: any) => (
+                                                    <div key={entry.dataKey} className="flex items-center gap-2 text-sm">
+                                                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.fill }} />
+                                                        <span className="text-gray-600">{entry.dataKey === 'success' ? 'Exitosos' : 'Fallidos'}:</span>
+                                                        <span className="font-semibold text-gray-900">{entry.value}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        );
+                                    }
+                                    return null;
                                 }}
                             />
-                            <Legend
-                                formatter={(value) => {
-                                    const labels: Record<string, string> = {
-                                        success: 'Exitosos',
-                                        failed: 'Fallidos',
-                                        sent: 'Total'
-                                    };
-                                    return labels[value] || value;
-                                }}
-                            />
-                            <Bar dataKey="success" fill="#10b981" name="success" />
-                            <Bar dataKey="failed" fill="#ef4444" name="failed" />
+                            <Bar dataKey="success" fill="#10b981" radius={[4, 4, 0, 0]} name="success" />
+                            <Bar dataKey="failed" fill="#ef4444" radius={[4, 4, 0, 0]} name="failed" />
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
 
-                <div className="mt-6 pt-6 border-t">
+                {/* Success Rate Footer */}
+                <div className="mt-5 pt-4 border-t border-gray-100">
                     <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Tasa de Éxito</span>
-                        <div className="flex items-center gap-2">
-                            <div className="w-48 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-green-500 transition-all duration-500"
-                                    style={{ width: `${stats.successRate}%` }}
-                                ></div>
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                                <span className="text-xs font-medium text-gray-500">Exitosos</span>
                             </div>
-                            <span className="text-lg font-bold">{stats.successRate.toFixed(1)}%</span>
+                            <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                                <span className="text-xs font-medium text-gray-500">Fallidos</span>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs font-medium text-gray-500">Tasa de éxito</span>
+                            <div className="w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-emerald-500 rounded-full transition-all duration-700"
+                                    style={{ width: `${stats.successRate}%` }}
+                                />
+                            </div>
+                            <span className="text-sm font-bold text-gray-900">{stats.successRate.toFixed(1)}%</span>
                         </div>
                     </div>
                 </div>
