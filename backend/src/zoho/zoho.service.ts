@@ -21,6 +21,7 @@ export interface ZohoContact {
   Email: string | null;
   Phone: string | null;
   Estado_del_cliente: string | null;
+  Motivo_de_cierre: string | null;
   Email_operativo: string | null;
   Industria: string | null;
   Puesto_objetivo: string | null;
@@ -141,6 +142,7 @@ export class ZohoService {
   async updateClientEstado(
     zohoId: string,
     nuevoEstado: string,
+    motivoCierre?: string | null,
   ): Promise<void> {
     try {
       const accessToken = await this.getAccessToken();
@@ -148,12 +150,19 @@ export class ZohoService {
       // Zoho CRM API endpoint to update a contact
       const updateUrl = `/crm/v2/Contacts/${zohoId}`;
 
+      const contactData: Record<string, string> = {
+        Estado_del_cliente: nuevoEstado,
+      };
+
+      // Include Motivo_de_cierre when closing, or clear it when not Closed
+      if (nuevoEstado === 'Closed' && motivoCierre) {
+        contactData.Motivo_de_cierre = motivoCierre;
+      } else if (nuevoEstado !== 'Closed') {
+        contactData.Motivo_de_cierre = '';
+      }
+
       const requestBody = {
-        data: [
-          {
-            Estado_del_cliente: nuevoEstado, // API field name in Zoho CRM
-          },
-        ],
+        data: [contactData],
       };
 
       const response = await this.axiosInstance.put(updateUrl, requestBody, {

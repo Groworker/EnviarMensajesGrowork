@@ -81,6 +81,12 @@ export default function ClientsPage() {
         variant: 'info',
     });
 
+    // Closure reason modal state
+    const [closureModal, setClosureModal] = useState<{
+        open: boolean;
+        clientId: number | null;
+    }>({ open: false, clientId: null });
+
     // Column filters
     const [estadoCrmFilter, setEstadoCrmFilter] = useState<string>('');
     const [estadoEnvioFilter, setEstadoEnvioFilter] = useState<string>('');
@@ -276,11 +282,20 @@ export default function ClientsPage() {
         }
     };
 
-    const handleEstadoChange = async (clientId: number, nuevoEstado: string) => {
+    const handleEstadoChange = async (clientId: number, nuevoEstado: string, motivoCierre?: string) => {
+        // If changing to Closed, show modal to select closure reason
+        if (nuevoEstado === 'Closed' && !motivoCierre) {
+            setClosureModal({ open: true, clientId });
+            return;
+        }
+
         const loadingToast = toast.loading(`Actualizando estado a "${nuevoEstado}"...`);
 
         try {
-            await api.patch(`/clients/${clientId}/estado`, { estado: nuevoEstado });
+            await api.patch(`/clients/${clientId}/estado`, {
+                estado: nuevoEstado,
+                ...(motivoCierre && { motivoCierre }),
+            });
 
             toast.success(
                 `Estado actualizado correctamente a "${nuevoEstado}" y sincronizado con Zoho CRM`,
@@ -631,11 +646,9 @@ export default function ClientsPage() {
                             className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
                         >
                             <option value="">Todos</option>
-                            <option value="Envío activo">Envío activo</option>
-                            <option value="Entrevista">Entrevista</option>
-                            <option value="Contratado">Contratado</option>
-                            <option value="Cerrado">Cerrado</option>
-                            <option value="Pausado">Pausado</option>
+                            <option value="Onboarding">Onboarding</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Closed">Closed</option>
                         </select>
                     </div>
 
@@ -1467,22 +1480,21 @@ export default function ClientsPage() {
                                         </td>
                                         <td className="px-6 py-4">
                                             <select
-                                                value={client.estado || 'Envío activo'}
+                                                value={client.estado || 'Onboarding'}
                                                 onChange={(e) => handleEstadoChange(client.id, e.target.value)}
-                                                className={`px-3 py-1.5 rounded-lg text-sm font-medium border-2 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${client.estado === 'Envío activo' ? 'bg-green-50 border-green-200 text-green-800' :
-                                                    client.estado === 'Entrevista' ? 'bg-blue-50 border-blue-200 text-blue-800' :
-                                                        client.estado === 'Contratado' ? 'bg-purple-50 border-purple-200 text-purple-800' :
-                                                            client.estado === 'Cerrado' ? 'bg-red-50 border-red-200 text-red-800' :
-                                                                client.estado === 'Pausado' ? 'bg-yellow-50 border-yellow-200 text-yellow-800' :
-                                                                    'bg-gray-50 border-gray-200 text-gray-800'
+                                                className={`px-3 py-1.5 rounded-lg text-sm font-medium border-2 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${client.estado === 'Onboarding' ? 'bg-amber-50 border-amber-200 text-amber-800' :
+                                                    client.estado === 'In Progress' ? 'bg-green-50 border-green-200 text-green-800' :
+                                                        client.estado === 'Closed' ? 'bg-gray-50 border-gray-200 text-gray-800' :
+                                                            'bg-gray-50 border-gray-200 text-gray-800'
                                                     }`}
                                             >
-                                                <option value="Envío activo">Envío activo</option>
-                                                <option value="Entrevista">Entrevista</option>
-                                                <option value="Contratado">Contratado</option>
-                                                <option value="Cerrado">Cerrado</option>
-                                                <option value="Pausado">Pausado</option>
+                                                <option value="Onboarding">Onboarding</option>
+                                                <option value="In Progress">In Progress</option>
+                                                <option value="Closed">Closed</option>
                                             </select>
+                                            {client.estado === 'Closed' && client.motivoCierre && (
+                                                <div className="text-xs text-gray-500 mt-1">{client.motivoCierre}</div>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4">
                                             <button
@@ -1595,6 +1607,37 @@ export default function ClientsPage() {
                     onConfirm={handleDeleteClient}
                     isDeleting={isDeleting}
                 />
+            )}
+
+            {/* Closure Reason Modal */}
+            {closureModal.open && closureModal.clientId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Motivo de cierre</h3>
+                        <p className="text-sm text-gray-600 mb-4">Selecciona el motivo por el que se cierra este cliente:</p>
+                        <div className="flex flex-col gap-2">
+                            {['Contratad@', 'Sin correos restantes', 'Baja del Cliente', 'Problemas Técnicos'].map((motivo) => (
+                                <button
+                                    key={motivo}
+                                    onClick={() => {
+                                        const clientId = closureModal.clientId!;
+                                        setClosureModal({ open: false, clientId: null });
+                                        handleEstadoChange(clientId, 'Closed', motivo);
+                                    }}
+                                    className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all text-sm font-medium text-gray-700"
+                                >
+                                    {motivo}
+                                </button>
+                            ))}
+                        </div>
+                        <button
+                            onClick={() => setClosureModal({ open: false, clientId: null })}
+                            className="mt-4 w-full px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     );

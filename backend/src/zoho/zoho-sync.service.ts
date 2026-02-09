@@ -264,6 +264,9 @@ export class ZohoSyncService {
     if (zoho.Estado_del_cliente !== undefined) {
       client.estado = zoho.Estado_del_cliente as string;
     }
+    if (zoho.Motivo_de_cierre !== undefined) {
+      client.motivoCierre = zoho.Motivo_de_cierre as string || null;
+    }
     if (zoho.Email_operativo !== undefined) {
       client.emailOperativo = zoho.Email_operativo as string;
     }

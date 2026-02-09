@@ -25,9 +25,8 @@ export class SchedulerService {
     this.logger.log('Starting daily job creation process...');
 
     // 1. Fetch active clients with active send settings
-    // Note: estado in database is "Envío activo" (lowercase 'a')
     const activeClients = await this.clientRepository.find({
-      where: { estado: 'Envío activo' },
+      where: { estado: 'In Progress' },
       relations: ['sendSettings'],
     });
 

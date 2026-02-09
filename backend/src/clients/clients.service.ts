@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Client } from '../entities/client.entity';
@@ -195,18 +195,26 @@ export class ClientsService {
     const oldEstado = client.estado;
     const nuevoEstado = updateEstadoDto.estado;
 
+    // Validate: motivoCierre is required when estado = 'Closed'
+    if (nuevoEstado === 'Closed' && !updateEstadoDto.motivoCierre) {
+      throw new BadRequestException(
+        'El motivo de cierre es obligatorio cuando el estado es "Closed"',
+      );
+    }
+
     try {
       // 1. Update in database first
       client.estado = nuevoEstado;
+      client.motivoCierre = nuevoEstado === 'Closed' ? updateEstadoDto.motivoCierre : null;
       const updatedClient = await this.clientRepository.save(client);
 
       this.logger.log(
-        `Updated client ${id} estado from "${oldEstado}" to "${nuevoEstado}"`,
+        `Updated client ${id} estado from "${oldEstado}" to "${nuevoEstado}"${client.motivoCierre ? ` (motivo: ${client.motivoCierre})` : ''}`,
       );
 
       // 2. Sync with Zoho CRM
       try {
-        await this.zohoService.updateClientEstado(client.zohoId, nuevoEstado);
+        await this.zohoService.updateClientEstado(client.zohoId, nuevoEstado, client.motivoCierre);
         this.logger.log(
           `Successfully synced estado to Zoho CRM for client ${id} (Zoho ID: ${client.zohoId})`,
         );

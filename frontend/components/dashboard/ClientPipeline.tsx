@@ -11,12 +11,10 @@ interface PipelineStats {
 }
 
 const ESTADO_COLORS: Record<string, string> = {
-    'Activo': '#10b981',
-    'Pausado': '#f59e0b',
-    'Cerrado': '#ef4444',
-    'Prospecto': '#3b82f6',
-    'En Proceso': '#8b5cf6',
-    'Sin estado': '#6b7280'
+    'Onboarding': '#f59e0b',
+    'In Progress': '#10b981',
+    'Closed': '#6b7280',
+    'Sin estado': '#d1d5db'
 };
 
 export default function ClientPipeline() {

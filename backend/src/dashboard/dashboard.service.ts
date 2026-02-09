@@ -20,11 +20,10 @@ export interface EmailStats {
 }
 
 export interface KPIData {
-    activeClients: number;
-    totalEmailsSent: number;
-    emailSuccessRate: number;
-    unreadNotifications: number;
-    recentDeletions: number;
+    totalClients: number;
+    onboarding: number;
+    inProgress: number;
+    closed: number;
 }
 
 @Injectable()
@@ -152,43 +151,29 @@ export class DashboardService {
      * Get KPI data for dashboard cards
      */
     async getKPIs(): Promise<KPIData> {
-        // Active clients (not deleted)
-        const activeClients = await this.clientsRepository
+        const baseQuery = this.clientsRepository
             .createQueryBuilder('client')
-            .where('client.deleted_at IS NULL')
+            .where('client.deleted_at IS NULL');
+
+        const totalClients = await baseQuery.clone().getCount();
+
+        const onboarding = await baseQuery.clone()
+            .andWhere('client.estado = :estado', { estado: 'Onboarding' })
             .getCount();
 
-        // Total emails sent (last 30 days)
-        const sinceDate = new Date();
-        sinceDate.setDate(sinceDate.getDate() - 30);
-        const totalEmailsSent = await this.emailSendsRepository
-            .createQueryBuilder('email')
-            .where('email.sent_at >= :sinceDate', { sinceDate })
+        const inProgress = await baseQuery.clone()
+            .andWhere('client.estado = :estado', { estado: 'In Progress' })
             .getCount();
 
-        // Email success rate (last 30 days)
-        const successfulEmails = await this.emailSendsRepository
-            .createQueryBuilder('email')
-            .where('email.sent_at >= :sinceDate', { sinceDate })
-            .andWhere('email.status = :status', { status: 'sent' })
+        const closed = await baseQuery.clone()
+            .andWhere('client.estado = :estado', { estado: 'Closed' })
             .getCount();
-        const emailSuccessRate =
-            totalEmailsSent > 0 ? (successfulEmails / totalEmailsSent) * 100 : 0;
-
-        // Unread notifications
-        const unreadNotifications = await this.notificationsRepository.count({
-            where: { isRead: false },
-        });
-
-        // Recent deletions (placeholder - DeletionLog entity not implemented yet)
-        const recentDeletions = 0;
 
         return {
-            activeClients,
-            totalEmailsSent,
-            emailSuccessRate,
-            unreadNotifications,
-            recentDeletions,
+            totalClients,
+            onboarding,
+            inProgress,
+            closed,
         };
     }
 
@@ -206,7 +191,7 @@ export class DashboardService {
             .andWhere(
                 '(client.estado = :estado AND client.estado_changed_at < :closedThreshold) OR (client.last_email_sent_at < :emailThreshold)',
                 {
-                    estado: 'Cerrado',
+                    estado: 'Closed',
                     closedThreshold,
                     emailThreshold,
                 },
