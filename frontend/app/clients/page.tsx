@@ -960,30 +960,34 @@ export default function ClientsPage() {
                             {activeTab === 'criteria' && (
                                 <div className="space-y-6">
                                     {/* Sección Datos del Cliente (SOLO LECTURA - vienen de Zoho) */}
-                                    <div className="border-2 rounded-lg p-5 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-300 shadow-sm">
+                                    <div className="border rounded-lg p-5 bg-gray-50 border-gray-200">
                                         <div className="flex items-center justify-between mb-4">
-                                            <h3 className="font-bold text-blue-900 flex items-center gap-2 text-base">
-                                                <Info size={20} className="text-blue-600" />
+                                            <h3 className="font-semibold text-gray-500 flex items-center gap-2 text-base">
+                                                <Info size={18} className="text-gray-400" />
                                                 Datos del Cliente (desde Zoho CRM)
                                             </h3>
-                                            <span className="text-xs font-semibold text-blue-800 bg-blue-200 px-3 py-1.5 rounded-full">
-                                                🔒 Solo lectura
+                                            <span className="text-xs font-medium text-gray-500 bg-gray-200 px-2.5 py-1 rounded-full flex items-center gap-1">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                                Solo lectura
                                             </span>
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-5">
+                                        <div className="grid grid-cols-2 gap-4">
                                             {/* Países */}
                                             <div>
-                                                <label className="block text-sm font-bold text-gray-800 mb-2">
-                                                    📍 Países de Interés
+                                                <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">
+                                                    Países de Interés
                                                 </label>
-                                                <div className="min-h-[42px] p-2 bg-white rounded-lg border-2 border-blue-200">
-                                                    <MultiSelectInput
-                                                        values={editingClient.paisesInteres || []}
-                                                        onChange={() => { }}
-                                                        disabled={true}
-                                                    />
-                                                    {(!editingClient.paisesInteres || editingClient.paisesInteres.length === 0) && (
+                                                <div className="min-h-[42px] p-2.5 bg-gray-100 rounded-lg border border-gray-200 cursor-not-allowed">
+                                                    {editingClient.paisesInteres && editingClient.paisesInteres.length > 0 ? (
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            {editingClient.paisesInteres.map((pais: string) => (
+                                                                <span key={pais} className="inline-flex items-center px-2.5 py-1 rounded-md text-sm font-medium bg-gray-200 text-gray-600">
+                                                                    {pais}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
                                                         <span className="text-gray-400 text-sm italic">Sin países configurados</span>
                                                     )}
                                                 </div>
@@ -991,16 +995,19 @@ export default function ClientsPage() {
 
                                             {/* Ciudades */}
                                             <div>
-                                                <label className="block text-sm font-bold text-gray-800 mb-2">
-                                                    🏙️ Ciudades de Interés
+                                                <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">
+                                                    Ciudades de Interés
                                                 </label>
-                                                <div className="min-h-[42px] p-2 bg-white rounded-lg border-2 border-blue-200">
-                                                    <MultiSelectInput
-                                                        values={editingClient.ciudadesInteres || []}
-                                                        onChange={() => { }}
-                                                        disabled={true}
-                                                    />
-                                                    {(!editingClient.ciudadesInteres || editingClient.ciudadesInteres.length === 0) && (
+                                                <div className="min-h-[42px] p-2.5 bg-gray-100 rounded-lg border border-gray-200 cursor-not-allowed">
+                                                    {editingClient.ciudadesInteres && editingClient.ciudadesInteres.length > 0 ? (
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            {editingClient.ciudadesInteres.map((ciudad: string) => (
+                                                                <span key={ciudad} className="inline-flex items-center px-2.5 py-1 rounded-md text-sm font-medium bg-gray-200 text-gray-600">
+                                                                    {ciudad}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
                                                         <span className="text-gray-400 text-sm italic">Sin ciudades configuradas</span>
                                                     )}
                                                 </div>
@@ -1008,135 +1015,113 @@ export default function ClientsPage() {
 
                                             {/* Job Title */}
                                             <div className="col-span-2">
-                                                <label className="block text-sm font-bold text-gray-800 mb-2">
-                                                    💼 Puesto Deseado
+                                                <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">
+                                                    Puesto Deseado
                                                 </label>
-                                                <input
-                                                    type="text"
-                                                    className="w-full rounded-lg border-2 border-blue-200 bg-white shadow-sm p-3 text-gray-800 font-medium"
-                                                    value={editingClient.jobTitle || 'No especificado'}
-                                                    disabled
-                                                    readOnly
-                                                />
+                                                <div className="w-full rounded-lg border border-gray-200 bg-gray-100 p-2.5 text-sm text-gray-600 cursor-not-allowed">
+                                                    {editingClient.jobTitle || <span className="italic text-gray-400">No especificado</span>}
+                                                </div>
                                             </div>
                                         </div>
 
-                                        <div className="mt-4 p-3 bg-blue-100 rounded-lg border border-blue-300">
-                                            <p className="text-sm text-blue-900 flex items-center gap-2 font-medium">
-                                                <AlertCircle size={16} className="flex-shrink-0" />
-                                                Estos datos se sincronizan automáticamente desde Zoho CRM y no se pueden editar aquí.
-                                            </p>
-                                        </div>
+                                        <p className="text-xs text-gray-400 mt-3 flex items-center gap-1.5">
+                                            <AlertCircle size={12} className="flex-shrink-0" />
+                                            Sincronizado automáticamente desde Zoho CRM
+                                        </p>
                                     </div>
 
-                                    {/* Sección Filtros Activos - SEGUNDA POSICIÓN */}
+                                    {/* Sección Filtros Activos */}
                                     <div className="border-2 rounded-lg p-5 bg-gradient-to-br from-purple-50 to-pink-50 border-purple-300 shadow-sm">
                                         <h3 className="font-bold text-purple-900 mb-5 flex items-center gap-2 text-base">
-                                            <Settings size={20} className="text-purple-700" />
+                                            <Filter size={20} className="text-purple-700" />
                                             Filtros Activos
                                         </h3>
 
                                         <div className="p-4 bg-white rounded-lg border-2 border-purple-200">
                                             <label className="block text-sm font-bold text-gray-800 mb-3">
-                                                ⚙️ Seleccionar Filtros
+                                                Seleccionar filtros para la búsqueda de ofertas
                                             </label>
-                                            <div className="space-y-3">
-                                                {['countries', 'cities', 'jobTitle'].map((filter) => {
+                                            <div className="space-y-2">
+                                                {[
+                                                    { key: 'countries', label: 'Países', icon: <MapPin size={16} className="text-purple-500" />, hasData: editingClient.paisesInteres && editingClient.paisesInteres.length > 0 },
+                                                    { key: 'cities', label: 'Ciudades', icon: <MapPin size={16} className="text-purple-500" />, hasData: editingClient.ciudadesInteres && editingClient.ciudadesInteres.length > 0 },
+                                                    { key: 'jobTitle', label: 'Puesto de Trabajo', icon: <Briefcase size={16} className="text-purple-500" />, hasData: !!editingClient.jobTitle },
+                                                ].map(({ key, label, icon, hasData }) => {
                                                     const currentFilters = editingClient.sendSettings?.matchingCriteria?.enabledFilters || [];
-                                                    const isChecked = currentFilters.length === 0 || currentFilters.includes(filter);
+                                                    const isChecked = hasData && (currentFilters.length === 0 || currentFilters.includes(key));
+                                                    const isDisabled = !hasData;
 
                                                     return (
-                                                        <label key={filter} className="flex items-center gap-3 p-2 hover:bg-purple-50 rounded-lg cursor-pointer transition-colors">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={isChecked}
-                                                                onChange={(e) => {
-                                                                    let updated: string[];
-                                                                    if (currentFilters.length === 0) {
-                                                                        updated = ['countries', 'cities', 'jobTitle'].filter(f => f !== filter || e.target.checked);
-                                                                    } else {
-                                                                        updated = e.target.checked
-                                                                            ? [...currentFilters, filter]
-                                                                            : currentFilters.filter((f: string) => f !== filter);
-                                                                    }
-
-                                                                    const newSettings = {
-                                                                        ...editingClient.sendSettings,
-                                                                        matchingCriteria: {
-                                                                            ...editingClient.sendSettings?.matchingCriteria,
-                                                                            enabledFilters: updated,
-                                                                        },
-                                                                    };
-                                                                    setEditingClient({ ...editingClient, sendSettings: newSettings });
-                                                                }}
-                                                                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 w-5 h-5"
-                                                            />
-                                                            <span className="text-sm text-gray-800 font-medium">
-                                                                {filter === 'countries' ? '📍 Países' :
-                                                                    filter === 'cities' ? '🏙️ Ciudades' :
-                                                                        '💼 Puesto de Trabajo'}
-                                                            </span>
+                                                        <label
+                                                            key={key}
+                                                            className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                                                                isDisabled
+                                                                    ? 'bg-gray-50 border-gray-200 cursor-not-allowed opacity-60'
+                                                                    : isChecked
+                                                                        ? 'bg-purple-50 border-purple-200 cursor-pointer'
+                                                                        : 'bg-white border-gray-200 hover:bg-gray-50 cursor-pointer'
+                                                            }`}
+                                                        >
+                                                            <div className="flex items-center gap-3">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isChecked}
+                                                                    disabled={isDisabled}
+                                                                    onChange={(e) => {
+                                                                        if (isDisabled) return;
+                                                                        let updated: string[];
+                                                                        if (currentFilters.length === 0) {
+                                                                            updated = ['countries', 'cities', 'jobTitle'].filter(f => f !== key || e.target.checked);
+                                                                        } else {
+                                                                            updated = e.target.checked
+                                                                                ? [...currentFilters, key]
+                                                                                : currentFilters.filter((f: string) => f !== key);
+                                                                        }
+                                                                        const newSettings = {
+                                                                            ...editingClient.sendSettings,
+                                                                            matchingCriteria: {
+                                                                                ...editingClient.sendSettings?.matchingCriteria,
+                                                                                enabledFilters: updated,
+                                                                            },
+                                                                        };
+                                                                        setEditingClient({ ...editingClient, sendSettings: newSettings });
+                                                                    }}
+                                                                    className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 w-4 h-4 disabled:opacity-50"
+                                                                />
+                                                                <span className="flex items-center gap-2 text-sm font-medium text-gray-800">
+                                                                    {icon} {label}
+                                                                </span>
+                                                            </div>
+                                                            {isDisabled && (
+                                                                <span className="text-xs text-gray-400 italic">Sin datos en Zoho</span>
+                                                            )}
                                                         </label>
                                                     );
                                                 })}
                                             </div>
                                             <div className="mt-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
-                                                <p className="text-xs text-purple-900 font-medium">
-                                                    💡 Desmarcar un filtro lo desactiva temporalmente sin borrar los datos del cliente
+                                                <p className="text-xs text-purple-900">
+                                                    Los campos vacíos en Zoho se desactivan automáticamente. Si el cliente no tiene datos en un campo, no se filtrará por él.
                                                 </p>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Sección Configuración de Matching */}
-                                    <div className="border-2 rounded-lg p-5 bg-gradient-to-br from-gray-50 to-slate-50 border-gray-300 shadow-sm">
-                                        <h3 className="font-bold text-gray-900 mb-5 flex items-center gap-2 text-base">
-                                            <Settings size={20} className="text-gray-700" />
-                                            Configuración de Búsqueda
-                                        </h3>
+                                    {/* Modo de Búsqueda de Puesto - Solo visible si jobTitle está activo */}
+                                    {(() => {
+                                        const currentFilters = editingClient.sendSettings?.matchingCriteria?.enabledFilters || [];
+                                        const hasJobTitle = !!editingClient.jobTitle;
+                                        const isJobTitleEnabled = hasJobTitle && (currentFilters.length === 0 || currentFilters.includes('jobTitle'));
 
-                                        {/* Match Mode */}
-                                        <div className="mb-5 p-4 bg-white rounded-lg border-2 border-gray-200">
-                                            <label className="block text-sm font-bold text-gray-800 mb-3">
-                                                🎯 Modo de Coincidencia
-                                            </label>
-                                            <select
-                                                className="w-full rounded-lg border-2 border-gray-300 shadow-sm p-3 bg-white text-gray-800 font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
-                                                value={editingClient.sendSettings?.matchingCriteria?.matchMode || 'all'}
-                                                onChange={(e) => {
-                                                    const newSettings = {
-                                                        ...editingClient.sendSettings,
-                                                        matchingCriteria: {
-                                                            ...editingClient.sendSettings?.matchingCriteria,
-                                                            matchMode: e.target.value,
-                                                        },
-                                                    };
-                                                    setEditingClient({ ...editingClient, sendSettings: newSettings });
-                                                }}
-                                            >
-                                                <option value="all">✅ Todas las condiciones (AND)</option>
-                                                <option value="any">🔀 Cualquier condición (OR)</option>
-                                            </select>
-                                            <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                                <p className="text-xs text-gray-700 leading-relaxed">
-                                                    <strong className="text-gray-900">AND:</strong> La oferta debe cumplir <strong>TODOS</strong> los criterios configurados<br />
-                                                    <strong className="text-gray-900">OR:</strong> Basta con que cumpla <strong>UNO</strong> de los criterios
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        {/* Job Title Match Mode - Solo visible si jobTitle está activo */}
-                                        {(() => {
-                                            const currentFilters = editingClient.sendSettings?.matchingCriteria?.enabledFilters || [];
-                                            const isJobTitleEnabled = currentFilters.length === 0 || currentFilters.includes('jobTitle');
-
-                                            return isJobTitleEnabled ? (
-                                                <div className="p-4 bg-white rounded-lg border-2 border-gray-200">
-                                                    <label className="block text-sm font-bold text-gray-800 mb-3">
-                                                        🔍 Modo de Búsqueda de Puesto
-                                                    </label>
+                                        return isJobTitleEnabled ? (
+                                            <div className="border-2 rounded-lg p-5 bg-gradient-to-br from-gray-50 to-slate-50 border-gray-300 shadow-sm">
+                                                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 text-base">
+                                                    <Briefcase size={20} className="text-gray-700" />
+                                                    Modo de Búsqueda de Puesto
+                                                </h3>
+                                                <div className="p-4 bg-white rounded-lg border border-gray-200">
                                                     <select
-                                                        className="w-full rounded-lg border-2 border-gray-300 shadow-sm p-3 bg-white text-gray-800 font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                                                        className="w-full rounded-lg border border-gray-300 shadow-sm p-3 bg-white text-gray-800 font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
                                                         value={editingClient.sendSettings?.matchingCriteria?.jobTitleMatchMode || 'contains'}
                                                         onChange={(e) => {
                                                             const newSettings = {
@@ -1149,23 +1134,20 @@ export default function ClientsPage() {
                                                             setEditingClient({ ...editingClient, sendSettings: newSettings });
                                                         }}
                                                     >
-                                                        <option value="contains">🔎 Contiene (recomendado)</option>
-                                                        <option value="exact">🎯 Exacto</option>
-                                                        <option value="none">🙈 Ninguno</option>
+                                                        <option value="contains">Contiene (recomendado)</option>
+                                                        <option value="exact">Exacto</option>
                                                     </select>
                                                     <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                                        <p className="text-xs text-gray-700 leading-relaxed">
-                                                            <strong className="text-gray-900">Contiene:</strong> Busca ofertas que contengan el puesto<br />
-                                                            <span className="text-gray-600 italic">Ej: "Chef" encuentra "Chef de Cocina", "Sous Chef"</span><br />
-                                                            <span className="text-gray-600 italic">Ej: "Chef" encuentra "Chef de Cocina", "Sous Chef"</span><br />
-                                                            <strong className="text-gray-900 mt-1 inline-block">Exacto:</strong> Solo ofertas con el mismo puesto exacto<br />
-                                                            <strong className="text-gray-900 mt-1 inline-block">Ninguno:</strong> No filtra por puesto (acepta cualquier trabajo)
+                                                        <p className="text-xs text-gray-600 leading-relaxed">
+                                                            <strong className="text-gray-800">Contiene:</strong> Busca ofertas que contengan el puesto en el título<br />
+                                                            <span className="text-gray-500 italic">Ej: &quot;Chef&quot; encuentra &quot;Chef de Cocina&quot;, &quot;Sous Chef&quot;</span><br />
+                                                            <strong className="text-gray-800 mt-1 inline-block">Exacto:</strong> Solo ofertas con el mismo puesto exacto
                                                         </p>
                                                     </div>
                                                 </div>
-                                            ) : null;
-                                        })()}
-                                    </div>
+                                            </div>
+                                        ) : null;
+                                    })()}
                                 </div>
                             )}
 
