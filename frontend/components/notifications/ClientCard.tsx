@@ -19,29 +19,39 @@ export default function ClientCard({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
 
+  const WORKFLOW_CARD_COLORS: Record<string, { bg: string; dot: string }> = {
+    'WKF-1': { bg: 'bg-blue-50 border-blue-200', dot: 'bg-blue-500' },
+    'WKF-1.1': { bg: 'bg-purple-50 border-purple-300', dot: 'bg-purple-500' },
+    'WKF-1.2': { bg: 'bg-teal-50 border-teal-200', dot: 'bg-teal-500' },
+    'WKF-1.3': { bg: 'bg-amber-50 border-amber-300', dot: 'bg-amber-500' },
+    'WKF-4': { bg: 'bg-indigo-50 border-indigo-200', dot: 'bg-indigo-500' },
+  };
+
   const getStatusColor = () => {
     switch (client.status) {
-      case 'PENDING':
-        return 'bg-orange-100 border-orange-300';
       case 'OK':
         return 'bg-green-100 border-green-300';
       case 'ERROR':
         return 'bg-red-100 border-red-300';
-      default:
-        return 'bg-gray-100 border-gray-300';
+      case 'PENDING':
+      default: {
+        const wfColors = WORKFLOW_CARD_COLORS[client.currentWorkflow];
+        return wfColors ? wfColors.bg : 'bg-gray-100 border-gray-300';
+      }
     }
   };
 
   const getStatusDot = () => {
     switch (client.status) {
-      case 'PENDING':
-        return 'bg-orange-500';
       case 'OK':
         return 'bg-green-500';
       case 'ERROR':
         return 'bg-red-500';
-      default:
-        return 'bg-gray-500';
+      case 'PENDING':
+      default: {
+        const wfColors = WORKFLOW_CARD_COLORS[client.currentWorkflow];
+        return wfColors ? wfColors.dot : 'bg-gray-500';
+      }
     }
   };
 

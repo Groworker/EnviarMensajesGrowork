@@ -6,6 +6,14 @@ interface WorkflowColumnProps {
   onRefresh: () => void;
 }
 
+const WORKFLOW_COLORS: Record<string, { accent: string; headerBg: string }> = {
+  'WKF-1': { accent: 'border-t-blue-500', headerBg: 'bg-blue-50' },
+  'WKF-1.1': { accent: 'border-t-purple-500', headerBg: 'bg-purple-50' },
+  'WKF-1.2': { accent: 'border-t-teal-500', headerBg: 'bg-teal-50' },
+  'WKF-1.3': { accent: 'border-t-amber-500', headerBg: 'bg-amber-50' },
+  'WKF-4': { accent: 'border-t-indigo-500', headerBg: 'bg-indigo-50' },
+};
+
 export default function WorkflowColumn({
   column,
   onRefresh,
@@ -16,10 +24,17 @@ export default function WorkflowColumn({
     ERROR: column.clients.filter((c) => c.status === 'ERROR').length,
   };
 
+  const colors = WORKFLOW_COLORS[column.workflowType] || {
+    accent: 'border-t-gray-400',
+    headerBg: 'bg-gray-50',
+  };
+
   return (
-    <div className="flex-shrink-0 w-80 bg-white rounded-lg shadow-sm border border-gray-200">
+    <div
+      className={`flex-shrink-0 w-80 bg-white rounded-lg shadow-sm border border-gray-200 border-t-4 ${colors.accent}`}
+    >
       {/* Column Header */}
-      <div className="p-4 border-b border-gray-200">
+      <div className={`p-4 border-b border-gray-200 ${colors.headerBg}`}>
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-bold text-gray-900">{column.title}</h3>
           <span className="text-sm font-medium text-gray-500">
@@ -27,6 +42,15 @@ export default function WorkflowColumn({
           </span>
         </div>
         <p className="text-sm text-gray-600 mb-3">{column.description}</p>
+
+        {/* Manual action badge */}
+        {column.requiresManualAction && (
+          <div className="mb-3">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800 border border-purple-300">
+              ✋ Requiere acción manual
+            </span>
+          </div>
+        )}
 
         {/* Status counts */}
         <div className="flex items-center gap-3 text-xs">
