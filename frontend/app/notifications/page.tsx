@@ -14,6 +14,15 @@ export interface PipelineColumn {
   requiresManualAction: boolean;
 }
 
+export interface WorkflowState {
+  workflowType: string;
+  status: 'PENDING' | 'OK' | 'ERROR';
+  executionUrl: string | null;
+  executedAt: string | null;
+  errorMessage: string | null;
+  metadata: Record<string, any> | null;
+}
+
 export interface ClientWorkflowCard {
   clientId: number;
   clientName: string;
@@ -24,7 +33,8 @@ export interface ClientWorkflowCard {
   errorMessage: string | null;
   metadata: Record<string, any> | null;
   driveFolder: string | null;
-  nextWorkflow: string | null;
+  currentWorkflow: string;
+  allWorkflows: WorkflowState[];
 }
 
 export default function NotificationsPage() {

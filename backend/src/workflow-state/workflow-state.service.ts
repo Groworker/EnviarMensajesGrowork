@@ -27,8 +27,27 @@ export interface ClientWorkflowCard {
   errorMessage: string | null;
   metadata: Record<string, any> | null;
   driveFolder: string | null;
-  nextWorkflow: WorkflowType | null;
+  currentWorkflow: WorkflowType;
+  allWorkflows: WorkflowState[];
 }
+
+export interface WorkflowState {
+  workflowType: WorkflowType;
+  status: WorkflowStatus;
+  executionUrl: string | null;
+  executedAt: Date | null;
+  errorMessage: string | null;
+  metadata: Record<string, any> | null;
+}
+
+// Define the order of workflows for progression logic
+export const WORKFLOW_ORDER: WorkflowType[] = [
+  WorkflowType.WKF_1,
+  WorkflowType.WKF_1_1,
+  WorkflowType.WKF_1_2,
+  WorkflowType.WKF_1_3,
+  WorkflowType.WKF_4,
+];
 
 @Injectable()
 export class WorkflowStateService {
@@ -39,10 +58,11 @@ export class WorkflowStateService {
     private readonly workflowStateRepository: Repository<ClientWorkflowState>,
     @InjectRepository(Client)
     private readonly clientRepository: Repository<Client>,
-  ) {}
+  ) { }
 
   /**
    * Get the complete workflow pipeline for the Kanban board
+   * NEW: Shows only ONE card per client in their current/active workflow
    */
   async getWorkflowPipeline(): Promise<PipelineColumn[]> {
     // Get all clients with their workflow states
@@ -56,90 +76,129 @@ export class WorkflowStateService {
       order: { clientId: 'ASC' },
     });
 
-    // Group states by workflow type
-    const statesByWorkflow = new Map<WorkflowType, ClientWorkflowState[]>();
+    // Group states by client
+    const statesByClient = new Map<number, Map<WorkflowType, ClientWorkflowState>>();
     allStates.forEach((state) => {
-      if (!statesByWorkflow.has(state.workflowType)) {
-        statesByWorkflow.set(state.workflowType, []);
+      if (!statesByClient.has(state.clientId)) {
+        statesByClient.set(state.clientId, new Map());
       }
-      const workflowStates = statesByWorkflow.get(state.workflowType);
-      if (workflowStates) {
-        workflowStates.push(state);
-      }
+      statesByClient.get(state.clientId)!.set(state.workflowType, state);
     });
 
-    // Define workflow columns
+    // Define workflow columns + COMPLETED column
     const workflows: Array<{
-      type: WorkflowType;
+      type: WorkflowType | 'COMPLETED';
       title: string;
       description: string;
       requiresManualAction: boolean;
-      nextWorkflow: WorkflowType | null;
     }> = [
-      {
-        type: WorkflowType.WKF_1,
-        title: 'WKF-1',
-        description: 'Auto-ejecutado desde Zoho CRM',
-        requiresManualAction: false,
-        nextWorkflow: WorkflowType.WKF_1_1,
-      },
-      {
-        type: WorkflowType.WKF_1_1,
-        title: 'WKF-1.1',
-        description: 'Revisar carpeta y ejecutar manualmente',
-        requiresManualAction: true,
-        nextWorkflow: WorkflowType.WKF_1_2,
-      },
-      {
-        type: WorkflowType.WKF_1_2,
-        title: 'WKF-1.2',
-        description: 'Auto-ejecutado cada 5 horas',
-        requiresManualAction: false,
-        nextWorkflow: WorkflowType.WKF_1_3,
-      },
-      {
-        type: WorkflowType.WKF_1_3,
-        title: 'WKF-1.3',
-        description: 'Revisar carpeta y ejecutar manualmente',
-        requiresManualAction: true,
-        nextWorkflow: null,
-      },
-      {
-        type: WorkflowType.WKF_4,
-        title: 'WKF-4',
-        description: 'Auto-ejecutado desde Zoho CRM',
-        requiresManualAction: false,
-        nextWorkflow: null,
-      },
-    ];
+        {
+          type: WorkflowType.WKF_1,
+          title: 'WKF-1',
+          description: 'Auto-ejecutado desde Zoho CRM',
+          requiresManualAction: false,
+        },
+        {
+          type: WorkflowType.WKF_1_1,
+          title: 'WKF-1.1',
+          description: 'Revisar carpeta y ejecutar manualmente',
+          requiresManualAction: true,
+        },
+        {
+          type: WorkflowType.WKF_1_2,
+          title: 'WKF-1.2',
+          description: 'Auto-ejecutado cada 5 horas',
+          requiresManualAction: false,
+        },
+        {
+          type: WorkflowType.WKF_1_3,
+          title: 'WKF-1.3',
+          description: 'Revisar carpeta y ejecutar manualmente',
+          requiresManualAction: true,
+        },
+        {
+          type: WorkflowType.WKF_4,
+          title: 'WKF-4',
+          description: 'Auto-ejecutado desde Zoho CRM',
+          requiresManualAction: false,
+        },
+        {
+          type: 'COMPLETED',
+          title: 'Workflows Completados',
+          description: 'Todos los workflows finalizados',
+          requiresManualAction: false,
+        },
+      ];
 
-    // Build pipeline columns
-    const pipeline: PipelineColumn[] = workflows.map((workflow) => {
-      const states = statesByWorkflow.get(workflow.type) || [];
-      const clientCards: ClientWorkflowCard[] = states.map((state) => {
-        const client = state.client;
+    // Initialize columns
+    const columnMap = new Map<WorkflowType | 'COMPLETED', ClientWorkflowCard[]>();
+    workflows.forEach((wf) => columnMap.set(wf.type, []));
+
+    // Process each client
+    for (const client of clients) {
+      const clientStates = statesByClient.get(client.id);
+      if (!clientStates || clientStates.size === 0) continue;
+
+      // Build roadmap (all workflows for this client)
+      const allWorkflows: WorkflowState[] = WORKFLOW_ORDER.map((wfType) => {
+        const state = clientStates.get(wfType);
         return {
-          clientId: client.id,
-          clientName: `${client.nombre || ''} ${client.apellido || ''}`.trim(),
-          estado: client.estado,
-          status: state.status,
-          executionUrl: state.executionUrl,
-          executedAt: state.executedAt,
-          errorMessage: state.errorMessage,
-          metadata: state.metadata,
-          driveFolder: client.idCarpetaCliente,
-          nextWorkflow: workflow.nextWorkflow,
+          workflowType: wfType,
+          status: state?.status || WorkflowStatus.PENDING,
+          executionUrl: state?.executionUrl || null,
+          executedAt: state?.executedAt || null,
+          errorMessage: state?.errorMessage || null,
+          metadata: state?.metadata || null,
         };
       });
 
-      return {
-        workflowType: workflow.type,
-        title: workflow.title,
-        description: workflow.description,
-        clients: clientCards,
-        requiresManualAction: workflow.requiresManualAction,
+      // Determine if all workflows are complete
+      const allComplete = allWorkflows.every((wf) => wf.status === WorkflowStatus.OK);
+
+      // Find current workflow (first non-OK)
+      const currentWorkflow = allComplete
+        ? null
+        : WORKFLOW_ORDER.find((wfType) => {
+          const state = clientStates.get(wfType);
+          return !state || state.status !== WorkflowStatus.OK;
+        });
+
+      // Get the current state data
+      const currentState = currentWorkflow ? clientStates.get(currentWorkflow) : null;
+
+      // Create card
+      const card: ClientWorkflowCard = {
+        clientId: client.id,
+        clientName: `${client.nombre || ''} ${client.apellido || ''}`.trim(),
+        estado: client.estado,
+        status: allComplete
+          ? WorkflowStatus.OK
+          : currentState?.status || WorkflowStatus.PENDING,
+        executionUrl: currentState?.executionUrl || null,
+        executedAt: currentState?.executedAt || null,
+        errorMessage: currentState?.errorMessage || null,
+        metadata: currentState?.metadata || null,
+        driveFolder: client.idCarpetaCliente,
+        currentWorkflow: currentWorkflow || WorkflowType.WKF_4, // If all complete, show last workflow
+        allWorkflows,
       };
-    });
+
+      // Add to appropriate column
+      if (allComplete) {
+        columnMap.get('COMPLETED')!.push(card);
+      } else if (currentWorkflow) {
+        columnMap.get(currentWorkflow)!.push(card);
+      }
+    }
+
+    // Build final pipeline
+    const pipeline: PipelineColumn[] = workflows.map((workflow) => ({
+      workflowType: workflow.type as any,
+      title: workflow.title,
+      description: workflow.description,
+      clients: columnMap.get(workflow.type) || [],
+      requiresManualAction: workflow.requiresManualAction,
+    }));
 
     return pipeline;
   }

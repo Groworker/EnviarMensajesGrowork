@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ClientWorkflowCard } from '@/app/notifications/page';
-import { ExternalLink, FolderOpen, Play } from 'lucide-react';
-import ClientWorkflowModal from './ClientWorkflowModal';
+import { ExternalLink, FolderOpen, ListOrdered } from 'lucide-react';
+import WorkflowRoadmapModal from './WorkflowRoadmapModal';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 
@@ -57,33 +57,7 @@ export default function ClientCard({
     }
   };
 
-  const handleExecuteWorkflow = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!client.nextWorkflow) return;
 
-    setIsExecuting(true);
-    try {
-      const response = await api.post(
-        `/workflow-states/${client.clientId}/${client.nextWorkflow}/execute`
-      );
-
-      if (response.data.success) {
-        toast.success(
-          `Workflow ${client.nextWorkflow} ejecutado correctamente`
-        );
-        onRefresh();
-      } else {
-        toast.error(
-          response.data.error || 'Error al ejecutar el workflow'
-        );
-      }
-    } catch (error: any) {
-      console.error('Error executing workflow:', error);
-      toast.error('Error al ejecutar el workflow');
-    } finally {
-      setIsExecuting(false);
-    }
-  };
 
   return (
     <>
@@ -127,26 +101,17 @@ export default function ClientCard({
           </div>
         )}
 
-        {/* Action Buttons */}
-        {requiresManualAction && client.status === 'OK' && client.nextWorkflow && (
-          <div className="flex gap-2 mt-3">
-            <button
-              onClick={handleOpenFolder}
-              className="flex-1 flex items-center justify-center gap-1 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
-            >
-              <FolderOpen size={14} />
-              <span>Abrir Carpeta</span>
-            </button>
-            <button
-              onClick={handleExecuteWorkflow}
-              disabled={isExecuting}
-              className="flex-1 flex items-center justify-center gap-1 px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors disabled:opacity-50"
-            >
-              <Play size={14} />
-              <span>{isExecuting ? 'Ejecutando...' : `Ejecutar ${client.nextWorkflow}`}</span>
-            </button>
-          </div>
-        )}
+        {/* View Roadmap Button */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsModalOpen(true);
+          }}
+          className="flex items-center justify-center gap-1 px-2 py-1.5 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 transition-colors w-full mt-3"
+        >
+          <ListOrdered size={14} />
+          <span>Ver Roadmap Completo</span>
+        </button>
 
         {/* Execution URL Link */}
         {client.executionUrl && (
@@ -163,13 +128,14 @@ export default function ClientCard({
         )}
       </div>
 
-      {/* Modal */}
-      <ClientWorkflowModal
+      {/* Roadmap Modal */}
+      <WorkflowRoadmapModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        client={client}
-        requiresManualAction={requiresManualAction}
-        onRefresh={onRefresh}
+        clientName={client.clientName || `Cliente ${client.clientId}`}
+        estado={client.estado}
+        driveFolder={client.driveFolder}
+        allWorkflows={client.allWorkflows}
       />
     </>
   );
