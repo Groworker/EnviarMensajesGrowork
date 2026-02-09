@@ -1301,70 +1301,115 @@ export default function ClientsPage() {
                                             <p className="text-sm mt-1">Sincroniza para buscar nuevas respuestas</p>
                                         </div>
                                     ) : (
-                                        <div className="space-y-4">
-                                            {clientResponses.map((response) => (
-                                                <div
-                                                    key={response.id}
-                                                    className={`border-2 rounded-lg p-4 ${response.isRead
-                                                        ? 'bg-white border-gray-200'
-                                                        : 'bg-blue-50/50 border-blue-200'
-                                                        }`}
-                                                >
-                                                    <div className="flex items-start justify-between mb-2">
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-center gap-2 mb-1">
-                                                                <Mail
-                                                                    size={16}
-                                                                    className={response.isRead ? 'text-gray-400' : 'text-blue-600'}
-                                                                />
-                                                                <span className="font-medium text-gray-900 truncate">
-                                                                    {response.fromEmail}
+                                        <div className="space-y-5">
+                                            {clientResponses.map((response) => {
+                                                // Separate reply from quoted original message
+                                                let replyText = '';
+                                                let quotedText = '';
+                                                if (response.bodyText) {
+                                                    const quotePattern = /\n\s*On .+wrote:\s*\n/i;
+                                                    const quotePatternEs = /\n\s*El .+escribió:\s*\n/i;
+                                                    const match = response.bodyText.match(quotePattern) || response.bodyText.match(quotePatternEs);
+                                                    if (match && match.index !== undefined) {
+                                                        replyText = response.bodyText.substring(0, match.index).trim();
+                                                        quotedText = response.bodyText.substring(match.index).trim();
+                                                    } else {
+                                                        replyText = response.bodyText.trim();
+                                                    }
+                                                }
+
+                                                return (
+                                                    <div
+                                                        key={response.id}
+                                                        className={`rounded-xl border overflow-hidden ${response.isRead
+                                                            ? 'bg-white border-gray-200'
+                                                            : 'bg-white border-blue-300 ring-1 ring-blue-100'
+                                                            }`}
+                                                    >
+                                                        {/* Header bar */}
+                                                        <div className={`px-5 py-3 flex items-center justify-between ${response.isRead ? 'bg-gray-50' : 'bg-blue-50'}`}>
+                                                            <div className="flex items-center gap-3 min-w-0">
+                                                                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${response.isRead ? 'bg-gray-300' : 'bg-blue-500'}`} />
+                                                                <span className="font-semibold text-gray-900 truncate text-sm">{response.fromEmail}</span>
+                                                                <span className="text-xs text-gray-400 flex-shrink-0">
+                                                                    {new Date(response.receivedAt).toLocaleString('es-ES', {
+                                                                        dateStyle: 'medium',
+                                                                        timeStyle: 'short',
+                                                                    })}
                                                                 </span>
                                                             </div>
-                                                            <div className="text-sm text-gray-700 font-medium truncate">
-                                                                {response.subject}
+                                                            <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+                                                                <ClassificationBadge
+                                                                    classification={response.classification}
+                                                                    confidence={response.classificationConfidence || undefined}
+                                                                    showConfidence={true}
+                                                                    size="sm"
+                                                                />
+                                                                <button
+                                                                    onClick={() => handleReclassifyResponse(response.id, editingClient.id)}
+                                                                    className="p-1.5 text-purple-600 hover:bg-purple-100 rounded-md transition"
+                                                                    title="Reclasificar con IA"
+                                                                >
+                                                                    <RotateCcw size={14} />
+                                                                </button>
                                                             </div>
-                                                            <div className="text-xs text-gray-500 mt-1">
-                                                                {new Date(response.receivedAt).toLocaleString('es-ES', {
-                                                                    dateStyle: 'medium',
-                                                                    timeStyle: 'short',
-                                                                })}
+                                                        </div>
+
+                                                        {/* Body */}
+                                                        <div className="px-5 py-4 space-y-3">
+                                                            {/* Subject & Job context */}
+                                                            <div>
+                                                                <div className="text-sm font-semibold text-gray-800">{response.subject}</div>
                                                                 {response.emailSend?.jobOffer && (
-                                                                    <span className="ml-2">
-                                                                        | {response.emailSend.jobOffer.empresa}
-                                                                    </span>
+                                                                    <div className="flex items-center gap-2 mt-1.5">
+                                                                        <Briefcase size={13} className="text-gray-400" />
+                                                                        <span className="text-xs text-gray-500">
+                                                                            {response.emailSend.jobOffer.titulo} &mdash; {response.emailSend.jobOffer.empresa}
+                                                                        </span>
+                                                                    </div>
                                                                 )}
                                                             </div>
-                                                        </div>
-                                                        <div className="flex items-center gap-2 ml-4">
-                                                            <ClassificationBadge
-                                                                classification={response.classification}
-                                                                confidence={response.classificationConfidence || undefined}
-                                                                showConfidence={true}
-                                                                size="sm"
-                                                            />
-                                                            <button
-                                                                onClick={() => handleReclassifyResponse(response.id, editingClient.id)}
-                                                                className="p-1.5 text-purple-600 hover:bg-purple-50 rounded transition"
-                                                                title="Reclasificar con IA"
-                                                            >
-                                                                <RotateCcw size={14} />
-                                                            </button>
+
+                                                            {/* Reply content */}
+                                                            {replyText && (
+                                                                <div className="border-l-4 border-emerald-400 bg-emerald-50/50 rounded-r-lg px-4 py-3">
+                                                                    <div className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-1.5">Respuesta</div>
+                                                                    <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                                                                        {replyText.substring(0, 500)}
+                                                                        {replyText.length > 500 && '...'}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Quoted original message */}
+                                                            {quotedText && (
+                                                                <details className="group">
+                                                                    <summary className="cursor-pointer text-xs text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1.5 select-none">
+                                                                        <svg className="w-3 h-3 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                                                        Mensaje original enviado
+                                                                    </summary>
+                                                                    <div className="mt-2 border-l-4 border-gray-200 bg-gray-50 rounded-r-lg px-4 py-3">
+                                                                        <div className="text-xs text-gray-500 whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto">
+                                                                            {quotedText.substring(0, 800)}
+                                                                            {quotedText.length > 800 && '...'}
+                                                                        </div>
+                                                                    </div>
+                                                                </details>
+                                                            )}
+
+                                                            {/* AI reasoning */}
+                                                            {response.classificationReasoning && (
+                                                                <div className="flex gap-2 items-start bg-purple-50/50 rounded-lg px-3 py-2 border border-purple-100">
+                                                                    <span className="text-xs font-medium text-purple-600 flex-shrink-0 mt-0.5">IA</span>
+                                                                    <p className="text-xs text-purple-800/70 leading-relaxed">
+                                                                        {response.classificationReasoning}
+                                                                    </p>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
-                                                    {response.bodyText && (
-                                                        <div className="mt-2 text-sm text-gray-600 bg-gray-50 rounded p-2 max-h-24 overflow-y-auto whitespace-pre-wrap">
-                                                            {response.bodyText.substring(0, 300)}
-                                                            {response.bodyText.length > 300 && '...'}
-                                                        </div>
-                                                    )}
-                                                    {response.classificationReasoning && (
-                                                        <div className="mt-2 text-xs text-gray-500 italic">
-                                                            IA: {response.classificationReasoning}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     )}
 
