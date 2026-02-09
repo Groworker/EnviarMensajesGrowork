@@ -132,10 +132,12 @@ export default function ClientCard({
       <WorkflowRoadmapModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        clientId={client.clientId}
         clientName={client.clientName || `Cliente ${client.clientId}`}
         estado={client.estado}
         driveFolder={client.driveFolder}
         allWorkflows={client.allWorkflows}
+        onRefresh={onRefresh}
       />
     </>
   );

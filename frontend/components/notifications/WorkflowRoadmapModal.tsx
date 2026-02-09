@@ -1,6 +1,9 @@
 'use client';
 
-import { X, CheckCircle, Clock, XCircle, ExternalLink, FolderOpen } from 'lucide-react';
+import { X, CheckCircle, Clock, XCircle, ExternalLink, FolderOpen, Play } from 'lucide-react';
+import { useState } from 'react';
+import api from '@/lib/api';
+import toast from 'react-hot-toast';
 
 export interface WorkflowState {
     workflowType: string;
@@ -14,29 +17,57 @@ export interface WorkflowState {
 export interface RoadmapModalProps {
     isOpen: boolean;
     onClose: () => void;
+    clientId: number;
     clientName: string;
     estado: string;
     driveFolder: string | null;
     allWorkflows: WorkflowState[];
+    onRefresh?: () => void;
 }
 
-const WORKFLOW_TITLES: Record<string, { title: string; description: string }> = {
-    'WKF-1': { title: 'WKF-1: Creación de Carpetas y CV', description: 'Auto-ejecutado desde Zoho CRM' },
-    'WKF-1.1': { title: 'WKF-1.1: Asignar Creador de CV', description: 'Requiere acción manual' },
-    'WKF-1.2': { title: 'WKF-1.2: Detectar Archivo Nuevo', description: 'Auto-ejecutado cada 5 horas' },
-    'WKF-1.3': { title: 'WKF-1.3: Mover CV a Definitiva', description: 'Requiere acción manual' },
-    'WKF-4': { title: 'WKF-4: Email Corporativo', description: 'Auto-ejecutado desde Zoho CRM' },
+const WORKFLOW_TITLES: Record<string, { title: string; description: string; requiresManualAction: boolean }> = {
+    'WKF-1': { title: 'WKF-1: Creación de Carpetas y CV', description: 'Auto-ejecutado desde Zoho CRM', requiresManualAction: false },
+    'WKF-1.1': { title: 'WKF-1.1: Asignar Creador de CV', description: 'Requiere acción manual', requiresManualAction: true },
+    'WKF-1.2': { title: 'WKF-1.2: Detectar Archivo Nuevo', description: 'Auto-ejecutado cada 5 horas', requiresManualAction: false },
+    'WKF-1.3': { title: 'WKF-1.3: Mover CV a Definitiva', description: 'Requiere acción manual', requiresManualAction: true },
+    'WKF-4': { title: 'WKF-4: Email Corporativo', description: 'Auto-ejecutado desde Zoho CRM', requiresManualAction: false },
 };
 
 export default function WorkflowRoadmapModal({
     isOpen,
     onClose,
+    clientId,
     clientName,
     estado,
     driveFolder,
     allWorkflows,
+    onRefresh,
 }: RoadmapModalProps) {
+    const [executingWorkflow, setExecutingWorkflow] = useState<string | null>(null);
+
     if (!isOpen) return null;
+
+    const handleExecuteWorkflow = async (workflowType: string) => {
+        setExecutingWorkflow(workflowType);
+        try {
+            const response = await api.post(
+                `/workflow-states/${clientId}/${workflowType}/execute`
+            );
+
+            if (response.data.success) {
+                toast.success(`Workflow ${workflowType} ejecutado correctamente`);
+                if (onRefresh) onRefresh();
+                onClose();
+            } else {
+                toast.error(response.data.error || 'Error al ejecutar el workflow');
+            }
+        } catch (error: any) {
+            console.error('Error executing workflow:', error);
+            toast.error('Error al ejecutar el workflow');
+        } finally {
+            setExecutingWorkflow(null);
+        }
+    };
 
     const getStatusIcon = (status: string) => {
         switch (status) {
@@ -172,6 +203,18 @@ export default function WorkflowRoadmapModal({
                                                         <ExternalLink size={14} />
                                                         Ver en n8n
                                                     </a>
+                                                )}
+
+                                                {/* Execute Button for Manual Workflows */}
+                                                {info.requiresManualAction && workflow.status === 'PENDING' && index > 0 && allWorkflows[index - 1].status === 'OK' && (
+                                                    <button
+                                                        onClick={() => handleExecuteWorkflow(workflow.workflowType)}
+                                                        disabled={executingWorkflow === workflow.workflowType}
+                                                        className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        <Play size={16} />
+                                                        {executingWorkflow === workflow.workflowType ? 'Ejecutando...' : `Ejecutar ${workflow.workflowType}`}
+                                                    </button>
                                                 )}
                                             </div>
                                         </div>
