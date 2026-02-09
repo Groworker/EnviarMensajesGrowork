@@ -1633,8 +1633,19 @@ export default function ClientsPage() {
                             filteredClients.map((client) => {
                                 const settings = client.sendSettings;
                                 return (
-                                    <tr key={client.id} className="hover:bg-gray-50">
-                                        <td className="px-3 py-4 text-center">
+                                    <tr
+                                        key={client.id}
+                                        className="hover:bg-gray-50 cursor-pointer transition-colors"
+                                        onClick={(e) => {
+                                            // Don't toggle selection if clicking on interactive elements
+                                            const target = e.target as HTMLElement;
+                                            const isInteractive = target.closest('button, select, input, a');
+                                            if (!isInteractive) {
+                                                toggleSelectClient(client.id);
+                                            }
+                                        }}
+                                    >
+                                        <td className="px-3 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                                             <input
                                                 type="checkbox"
                                                 checked={selectedClients.has(client.id)}
