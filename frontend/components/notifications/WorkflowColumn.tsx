@@ -36,21 +36,19 @@ export default function WorkflowColumn({
       {/* Column Header */}
       <div className={`p-4 border-b border-gray-200 ${colors.headerBg}`}>
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-lg font-bold text-gray-900">{column.title}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-bold text-gray-900">{column.title}</h3>
+            {column.requiresManualAction && (
+              <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-purple-100 text-purple-600">
+                Manual
+              </span>
+            )}
+          </div>
           <span className="text-sm font-medium text-gray-500">
             {column.clients.length}
           </span>
         </div>
         <p className="text-sm text-gray-600 mb-3">{column.description}</p>
-
-        {/* Manual action badge */}
-        {column.requiresManualAction && (
-          <div className="mb-3">
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800 border border-purple-300">
-              ✋ Requiere acción manual
-            </span>
-          </div>
-        )}
 
         {/* Status counts */}
         <div className="flex items-center gap-3 text-xs">
