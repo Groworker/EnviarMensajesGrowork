@@ -4,6 +4,7 @@ import { X, CheckCircle, Clock, XCircle, ExternalLink, FolderOpen, Play } from '
 import { useState } from 'react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
+import FilePickerModal from './FilePickerModal';
 
 export interface WorkflowState {
     workflowType: string;
@@ -46,14 +47,16 @@ export default function WorkflowRoadmapModal({
     cvCreatorName,
 }: RoadmapModalProps) {
     const [executingWorkflow, setExecutingWorkflow] = useState<string | null>(null);
+    const [showFilePicker, setShowFilePicker] = useState(false);
 
     if (!isOpen) return null;
 
-    const handleExecuteWorkflow = async (workflowType: string) => {
+    const handleExecuteWorkflow = async (workflowType: string, metadata?: Record<string, any>) => {
         setExecutingWorkflow(workflowType);
         try {
             const response = await api.post(
-                `/workflow-states/${clientId}/${workflowType}/execute`
+                `/workflow-states/${clientId}/${workflowType}/execute`,
+                metadata ? { metadata } : undefined
             );
 
             if (response.data.success) {
@@ -219,12 +222,22 @@ export default function WorkflowRoadmapModal({
                                                 {/* Execute Button for Manual Workflows */}
                                                 {info.requiresManualAction && workflow.status === 'PENDING' && index > 0 && allWorkflows[index - 1].status === 'OK' && (
                                                     <button
-                                                        onClick={() => handleExecuteWorkflow(workflow.workflowType)}
+                                                        onClick={() => {
+                                                            if (workflow.workflowType === 'WKF-1.3') {
+                                                                setShowFilePicker(true);
+                                                            } else {
+                                                                handleExecuteWorkflow(workflow.workflowType);
+                                                            }
+                                                        }}
                                                         disabled={executingWorkflow === workflow.workflowType}
                                                         className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                                                     >
                                                         <Play size={16} />
-                                                        {executingWorkflow === workflow.workflowType ? 'Ejecutando...' : `Ejecutar ${workflow.workflowType}`}
+                                                        {executingWorkflow === workflow.workflowType
+                                                            ? 'Ejecutando...'
+                                                            : workflow.workflowType === 'WKF-1.3'
+                                                                ? 'Seleccionar CV y Ejecutar'
+                                                                : `Ejecutar ${workflow.workflowType}`}
                                                     </button>
                                                 )}
                                             </div>
@@ -257,6 +270,20 @@ export default function WorkflowRoadmapModal({
                     </button>
                 </div>
             </div>
+
+            {/* File Picker Modal for WKF-1.3 */}
+            {showFilePicker && (
+                <FilePickerModal
+                    clientId={clientId}
+                    clientName={clientName}
+                    onClose={() => setShowFilePicker(false)}
+                    onSelect={async (fileId, fileName) => {
+                        setShowFilePicker(false);
+                        await handleExecuteWorkflow('WKF-1.3', { archivoId: fileId });
+                        toast.success(`CV "${fileName}" seleccionado`);
+                    }}
+                />
+            )}
         </div>
     );
 }

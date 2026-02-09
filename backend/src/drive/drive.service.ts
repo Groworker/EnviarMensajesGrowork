@@ -71,6 +71,44 @@ export class DriveService {
   }
 
   /**
+   * Lists all files in a Google Drive folder (any type, not just PDFs)
+   * @param folderId - The Google Drive folder ID
+   * @returns Array of files with their metadata
+   */
+  async getAllFilesFromFolder(folderId: string): Promise<DriveFile[]> {
+    try {
+      const drive = await this.getDriveClient();
+
+      const response = await drive.files.list({
+        q: `'${folderId}' in parents and trashed=false and mimeType != 'application/vnd.google-apps.folder'`,
+        fields: 'files(id, name, mimeType, size)',
+        orderBy: 'modifiedTime desc',
+      });
+
+      const files = response.data.files || [];
+
+      this.logger.log(
+        `Found ${files.length} files in folder ${folderId}`,
+      );
+
+      return files.map((file) => ({
+        id: file.id || '',
+        name: file.name || 'unknown',
+        mimeType: file.mimeType || 'application/octet-stream',
+        size: file.size ? parseInt(file.size, 10) : undefined,
+      }));
+    } catch (error) {
+      if (error instanceof Error) {
+        this.logger.error(
+          `Failed to list all files from folder ${folderId}: ${error.message}`,
+          error.stack,
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Downloads a file from Google Drive as a Buffer
    * @param fileId - The Google Drive file ID
    * @returns The file content as a Buffer

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ClientWorkflowCard } from '@/app/notifications/page';
 import { ExternalLink, FolderOpen, ListOrdered, Play } from 'lucide-react';
 import WorkflowRoadmapModal from './WorkflowRoadmapModal';
+import FilePickerModal from './FilePickerModal';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 
@@ -18,6 +19,7 @@ export default function ClientCard({
 }: ClientCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [showFilePicker, setShowFilePicker] = useState(false);
 
   const WORKFLOW_CARD_COLORS: Record<string, { bg: string; dot: string }> = {
     'WKF-1': { bg: 'bg-blue-50 border-blue-200', dot: 'bg-blue-500' },
@@ -158,6 +160,10 @@ export default function ClientCard({
               <button
                 onClick={async (e) => {
                   e.stopPropagation();
+                  if (client.currentWorkflow === 'WKF-1.3') {
+                    setShowFilePicker(true);
+                    return;
+                  }
                   if (!client.hasFilesInOldFolder) {
                     toast.error('Debes subir al menos 1 archivo a la carpeta OLD antes de ejecutar');
                     return;
@@ -182,16 +188,16 @@ export default function ClientCard({
                     setIsExecuting(false);
                   }
                 }}
-                disabled={isExecuting || !client.hasFilesInOldFolder}
+                disabled={isExecuting}
                 className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Play size={14} />
-                <span>{isExecuting ? 'Ejecutando...' : 'Ejecutar'}</span>
+                <span>{isExecuting ? 'Ejecutando...' : client.currentWorkflow === 'WKF-1.3' ? 'Seleccionar CV' : 'Ejecutar'}</span>
               </button>
             </div>
 
-            {/* Warning if no files */}
-            {!client.hasFilesInOldFolder && (
+            {/* Warning if no files (only for WKF-1.1) */}
+            {client.currentWorkflow === 'WKF-1.1' && !client.hasFilesInOldFolder && (
               <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
                 ⚠️ Sube el CV a la carpeta OLD primero
               </div>
@@ -238,6 +244,36 @@ export default function ClientCard({
         onRefresh={onRefresh}
         cvCreatorName={client.cvCreatorName}
       />
+
+      {/* File Picker Modal for WKF-1.3 */}
+      {showFilePicker && (
+        <FilePickerModal
+          clientId={client.clientId}
+          clientName={client.clientName || `Cliente ${client.clientId}`}
+          onClose={() => setShowFilePicker(false)}
+          onSelect={async (fileId, fileName) => {
+            setShowFilePicker(false);
+            setIsExecuting(true);
+            try {
+              const response = await api.post(
+                `/workflow-states/${client.clientId}/WKF-1.3/execute`,
+                { metadata: { archivoId: fileId } }
+              );
+              if (response.data.success) {
+                toast.success(`CV "${fileName}" enviado a carpeta DEFINITIVA`);
+                onRefresh();
+              } else {
+                toast.error(response.data.error || 'Error al ejecutar WKF-1.3');
+              }
+            } catch (error: any) {
+              console.error('Error executing WKF-1.3:', error);
+              toast.error('Error al ejecutar WKF-1.3');
+            } finally {
+              setIsExecuting(false);
+            }
+          }}
+        />
+      )}
     </>
   );
 }

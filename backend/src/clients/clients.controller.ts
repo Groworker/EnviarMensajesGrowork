@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { ClientsService, ClientEmailStats } from './clients.service';
 import {
@@ -20,10 +21,17 @@ import {
 } from './dto';
 import { Client } from '../entities/client.entity';
 import { ClientSendSettings } from '../entities/client-send-settings.entity';
+import { DriveService } from '../drive/drive.service';
+import { DriveFile } from '../drive/interfaces/drive-file.interface';
 
 @Controller('clients')
 export class ClientsController {
-  constructor(private readonly clientsService: ClientsService) { }
+  private readonly logger = new Logger(ClientsController.name);
+
+  constructor(
+    private readonly clientsService: ClientsService,
+    private readonly driveService: DriveService,
+  ) { }
 
   @Get()
   async findAll(): Promise<Client[]> {
@@ -38,6 +46,24 @@ export class ClientsController {
     @Param('id', ParseIntPipe) id: number,
   ): Promise<ClientEmailStats> {
     return this.clientsService.getClientEmailStats(id);
+  }
+
+  /**
+   * Get files from a client's NEW folder in Google Drive
+   */
+  @Get(':id/new-folder-files')
+  async getNewFolderFiles(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<DriveFile[]> {
+    const client = await this.clientsService.findOne(id);
+    if (!client) {
+      throw new NotFoundException(`Client with ID ${id} not found`);
+    }
+    if (!client.idCarpetaNew) {
+      this.logger.warn(`Client ${id} has no NEW folder configured`);
+      return [];
+    }
+    return this.driveService.getAllFilesFromFolder(client.idCarpetaNew);
   }
 
   @Get(':id')
