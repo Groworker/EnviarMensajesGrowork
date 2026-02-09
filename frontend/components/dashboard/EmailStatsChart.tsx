@@ -3,8 +3,14 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Mail, CheckCircle, XCircle } from 'lucide-react';
+
+const PERIOD_OPTIONS = [
+    { value: 7, label: '7d' },
+    { value: 14, label: '14d' },
+    { value: 30, label: '30d' },
+    { value: 60, label: '60d' },
+];
 
 interface EmailStats {
     totalSent: number;
@@ -60,17 +66,21 @@ export default function EmailStatsChart() {
                         <CardTitle className="text-lg font-semibold text-gray-900">Estadísticas de Emails</CardTitle>
                         <p className="text-sm text-gray-500 mt-0.5">Rendimiento de envíos</p>
                     </div>
-                    <Select value={days.toString()} onValueChange={(value) => setDays(parseInt(value))}>
-                        <SelectTrigger className="w-36 h-9 text-sm">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="7">7 días</SelectItem>
-                            <SelectItem value="14">14 días</SelectItem>
-                            <SelectItem value="30">30 días</SelectItem>
-                            <SelectItem value="60">60 días</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+                        {PERIOD_OPTIONS.map((opt) => (
+                            <button
+                                key={opt.value}
+                                onClick={() => setDays(opt.value)}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                                    days === opt.value
+                                        ? 'bg-white text-gray-900 shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </CardHeader>
             <CardContent>
