@@ -118,7 +118,7 @@ export default function CvCreatorModal({ creator, onClose }: CvCreatorModalProps
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Nombre */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
               Nombre <span className="text-red-500">*</span>
             </label>
             <input
@@ -138,7 +138,7 @@ export default function CvCreatorModal({ creator, onClose }: CvCreatorModalProps
 
           {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
               Email <span className="text-red-500">*</span>
             </label>
             <input
@@ -158,7 +158,7 @@ export default function CvCreatorModal({ creator, onClose }: CvCreatorModalProps
 
           {/* Idiomas */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-semibold text-gray-900 mb-3">
               Idiomas <span className="text-red-500">*</span>
             </label>
             <div className="space-y-2">
@@ -171,7 +171,7 @@ export default function CvCreatorModal({ creator, onClose }: CvCreatorModalProps
                   }
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
-                <span className="text-sm text-gray-700">🇬🇧 Inglés</span>
+                <span className="text-sm font-medium text-gray-900">🇬🇧 Inglés</span>
               </label>
               <label className="flex items-center gap-2">
                 <input
@@ -182,7 +182,7 @@ export default function CvCreatorModal({ creator, onClose }: CvCreatorModalProps
                   }
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
-                <span className="text-sm text-gray-700">🇩🇪 Alemán</span>
+                <span className="text-sm font-medium text-gray-900">🇩🇪 Alemán</span>
               </label>
               <label className="flex items-center gap-2">
                 <input
@@ -193,7 +193,7 @@ export default function CvCreatorModal({ creator, onClose }: CvCreatorModalProps
                   }
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
-                <span className="text-sm text-gray-700">🇫🇷 Francés</span>
+                <span className="text-sm font-medium text-gray-900">🇫🇷 Francés</span>
               </label>
               <label className="flex items-center gap-2">
                 <input
@@ -204,7 +204,7 @@ export default function CvCreatorModal({ creator, onClose }: CvCreatorModalProps
                   }
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
-                <span className="text-sm text-gray-700">🇮🇹 Italiano</span>
+                <span className="text-sm font-medium text-gray-900">🇮🇹 Italiano</span>
               </label>
             </div>
             {errors.idiomas && (
@@ -223,18 +223,18 @@ export default function CvCreatorModal({ creator, onClose }: CvCreatorModalProps
                 }
                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-semibold text-gray-900">
                 Creador activo
               </span>
             </label>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-600">
               Solo los creadores activos aparecerán disponibles en los workflows
             </p>
           </div>
 
           {/* Notas */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
               Notas
             </label>
             <textarea
