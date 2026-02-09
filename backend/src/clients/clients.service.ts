@@ -294,4 +294,78 @@ export class ClientsService {
       lastEmailAt: lastEmail?.lastAt || null,
     };
   }
+
+  /**
+   * Bulk update status for multiple clients
+   */
+  async bulkUpdateStatus(
+    clientIds: number[],
+    nuevoEstado: string,
+    motivoCierre?: string,
+  ): Promise<{ updated: number }> {
+    if (!clientIds || clientIds.length === 0) {
+      throw new BadRequestException('No client IDs provided');
+    }
+
+    // Validate: motivoCierre is required when estado = 'Closed'
+    if (nuevoEstado === 'Closed' && !motivoCierre) {
+      throw new BadRequestException(
+        'El motivo de cierre es obligatorio cuando el estado es "Closed"',
+      );
+    }
+
+    let updatedCount = 0;
+
+    this.logger.log(
+      `Starting bulk update of ${clientIds.length} clients to estado "${nuevoEstado}"`,
+    );
+
+    // Process each client individually to ensure Zoho sync happens for each
+    for (const clientId of clientIds) {
+      try {
+        const client = await this.clientRepository.findOne({
+          where: { id: clientId },
+        });
+
+        if (!client) {
+          this.logger.warn(`Client ${clientId} not found, skipping`);
+          continue;
+        }
+
+        // Update in database
+        client.estado = nuevoEstado;
+        client.motivoCierre = nuevoEstado === 'Closed' ? (motivoCierre ?? null) : null;
+        await this.clientRepository.save(client);
+
+        // Sync with Zoho CRM
+        try {
+          await this.zohoService.updateClientEstado(
+            client.zohoId,
+            nuevoEstado,
+            client.motivoCierre,
+          );
+          this.logger.log(
+            `Successfully synced estado to Zoho for client ${clientId}`,
+          );
+        } catch (zohoError: any) {
+          this.logger.warn(
+            `Failed to sync estado to Zoho for client ${clientId}: ${zohoError.message}`,
+          );
+        }
+
+        updatedCount++;
+      } catch (error: any) {
+        this.logger.error(
+          `Failed to update client ${clientId}: ${error.message}`,
+        );
+        // Continue with other clients
+      }
+    }
+
+    this.logger.log(
+      `Bulk update completed: ${updatedCount}/${clientIds.length} clients updated`,
+    );
+
+    return { updated: updatedCount };
+  }
 }

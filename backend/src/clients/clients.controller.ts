@@ -108,4 +108,19 @@ export class ClientsController {
   ): Promise<{ updated: number }> {
     return this.clientsService.setPreviewModeAll(body.enabled);
   }
+
+  /**
+   * Bulk update status for multiple clients
+   */
+  @Post('bulk/update-status')
+  @HttpCode(HttpStatus.OK)
+  async bulkUpdateStatus(
+    @Body() body: { clientIds: number[]; estado: string; motivoCierre?: string },
+  ): Promise<{ updated: number }> {
+    return this.clientsService.bulkUpdateStatus(
+      body.clientIds,
+      body.estado,
+      body.motivoCierre,
+    );
+  }
 }

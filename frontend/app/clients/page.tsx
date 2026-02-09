@@ -87,6 +87,9 @@ export default function ClientsPage() {
         clientId: number | null;
     }>({ open: false, clientId: null });
 
+    // Multi-select state
+    const [selectedClients, setSelectedClients] = useState<Set<number>>(new Set());
+
     // Column filters
     const [estadoCrmFilter, setEstadoCrmFilter] = useState<string>('');
     const [estadoEnvioFilter, setEstadoEnvioFilter] = useState<string>('');
@@ -534,6 +537,86 @@ export default function ClientsPage() {
         }
     };
 
+    const toggleSelectClient = (clientId: number) => {
+        setSelectedClients(prev => {
+            const next = new Set(prev);
+            if (next.has(clientId)) {
+                next.delete(clientId);
+            } else {
+                next.add(clientId);
+            }
+            return next;
+        });
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedClients.size === filteredClients.length) {
+            setSelectedClients(new Set());
+        } else {
+            setSelectedClients(new Set(filteredClients.map(c => c.id)));
+        }
+    };
+
+    const handleBulkEstadoChange = async (nuevoEstado: string, motivoCierre?: string) => {
+        if (selectedClients.size === 0) return;
+
+        if (nuevoEstado === 'Closed' && !motivoCierre) {
+            // Show closure modal for bulk - we'll reuse it with a special flag
+            setClosureModal({ open: true, clientId: -1 }); // -1 = bulk mode
+            return;
+        }
+
+        const loadingToast = toast.loading(`Actualizando ${selectedClients.size} clientes a "${nuevoEstado}"...`);
+
+        try {
+            const response = await api.post('/clients/bulk/update-status', {
+                clientIds: Array.from(selectedClients),
+                estado: nuevoEstado,
+                ...(motivoCierre && { motivoCierre }),
+            });
+
+            toast.success(
+                `${response.data.updated} cliente${response.data.updated > 1 ? 's' : ''} actualizado${response.data.updated > 1 ? 's' : ''} a "${nuevoEstado}"`,
+                { id: loadingToast }
+            );
+        } catch (error: any) {
+            toast.error(
+                error.response?.data?.message || 'Error al actualizar clientes',
+                { id: loadingToast }
+            );
+        }
+
+        setSelectedClients(new Set());
+        fetchClients();
+    };
+
+    const handleBulkToggleEnvio = async (activate: boolean) => {
+        if (selectedClients.size === 0) return;
+
+        const loadingToast = toast.loading(activate ? 'Activando envíos...' : 'Desactivando envíos...');
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const clientId of selectedClients) {
+            try {
+                await api.patch(`/clients/${clientId}/settings`, { active: activate });
+                successCount++;
+            } catch {
+                errorCount++;
+            }
+        }
+
+        toast.dismiss(loadingToast);
+        if (errorCount === 0) {
+            toast.success(`${successCount} clientes ${activate ? 'activados' : 'desactivados'}`);
+        } else {
+            toast.error(`${successCount} actualizados, ${errorCount} errores`);
+        }
+
+        setSelectedClients(new Set());
+        fetchClients();
+    };
+
     const filteredClients = clients.filter(c => {
         // Text search filter
         const matchesSearch = searchTerm === '' ||
@@ -702,6 +785,57 @@ export default function ClientsPage() {
                     </span>
                 </div>
             </div>
+
+            {/* Bulk Actions Bar */}
+            {selectedClients.size > 0 && (
+                <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between animate-in">
+                    <div className="flex items-center gap-3">
+                        <span className="text-sm font-semibold text-blue-900">
+                            {selectedClients.size} cliente{selectedClients.size > 1 ? 's' : ''} seleccionado{selectedClients.size > 1 ? 's' : ''}
+                        </span>
+                        <button
+                            onClick={() => setSelectedClients(new Set())}
+                            className="text-xs text-blue-600 hover:text-blue-800 underline"
+                        >
+                            Deseleccionar
+                        </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 mr-2">Cambiar estado:</span>
+                        <button
+                            onClick={() => handleBulkEstadoChange('Onboarding')}
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 transition-colors"
+                        >
+                            Onboarding
+                        </button>
+                        <button
+                            onClick={() => handleBulkEstadoChange('In Progress')}
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-green-300 bg-green-50 text-green-800 hover:bg-green-100 transition-colors"
+                        >
+                            In Progress
+                        </button>
+                        <button
+                            onClick={() => handleBulkEstadoChange('Closed')}
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 bg-gray-50 text-gray-800 hover:bg-gray-100 transition-colors"
+                        >
+                            Closed
+                        </button>
+                        <div className="w-px h-6 bg-blue-200 mx-1"></div>
+                        <button
+                            onClick={() => handleBulkToggleEnvio(true)}
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-green-300 bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
+                        >
+                            Activar Envío
+                        </button>
+                        <button
+                            onClick={() => handleBulkToggleEnvio(false)}
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+                        >
+                            Pausar Envío
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {editingClient && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
@@ -967,7 +1101,7 @@ export default function ClientsPage() {
                                                 Datos del Cliente (desde Zoho CRM)
                                             </h3>
                                             <span className="text-xs font-medium text-gray-500 bg-gray-200 px-2.5 py-1 rounded-full flex items-center gap-1">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
                                                 Solo lectura
                                             </span>
                                         </div>
@@ -1054,13 +1188,12 @@ export default function ClientsPage() {
                                                     return (
                                                         <label
                                                             key={key}
-                                                            className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                                                                isDisabled
-                                                                    ? 'bg-gray-50 border-gray-200 cursor-not-allowed opacity-60'
-                                                                    : isChecked
-                                                                        ? 'bg-purple-50 border-purple-200 cursor-pointer'
-                                                                        : 'bg-white border-gray-200 hover:bg-gray-50 cursor-pointer'
-                                                            }`}
+                                                            className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${isDisabled
+                                                                ? 'bg-gray-50 border-gray-200 cursor-not-allowed opacity-60'
+                                                                : isChecked
+                                                                    ? 'bg-purple-50 border-purple-200 cursor-pointer'
+                                                                    : 'bg-white border-gray-200 hover:bg-gray-50 cursor-pointer'
+                                                                }`}
                                                         >
                                                             <div className="flex items-center gap-3">
                                                                 <input
@@ -1454,6 +1587,15 @@ export default function ClientsPage() {
                 <table className="w-full text-left">
                     <thead className="bg-gray-50 border-b border-gray-200">
                         <tr>
+                            <th className="px-3 py-3 w-12">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedClients.size > 0 && selectedClients.size === filteredClients.length}
+                                    onChange={toggleSelectAll}
+                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    title="Seleccionar todos"
+                                />
+                            </th>
                             <th className="px-3 py-3 font-medium text-gray-500 text-center w-16">Stats</th>
                             <th className="px-6 py-3 font-medium text-gray-500">Info Cliente</th>
                             <th className="px-6 py-3 font-medium text-gray-500">Estado CRM</th>
@@ -1466,7 +1608,7 @@ export default function ClientsPage() {
                     <tbody className="divide-y divide-gray-100">
                         {loading ? (
                             <tr>
-                                <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                                <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                                     <div className="flex flex-col items-center gap-2">
                                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                                         <span>Cargando clientes...</span>
@@ -1492,6 +1634,14 @@ export default function ClientsPage() {
                                 const settings = client.sendSettings;
                                 return (
                                     <tr key={client.id} className="hover:bg-gray-50">
+                                        <td className="px-3 py-4 text-center">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedClients.has(client.id)}
+                                                onChange={() => toggleSelectClient(client.id)}
+                                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                            />
+                                        </td>
                                         <td className="px-3 py-4 text-center">
                                             <button
                                                 onClick={() => handleEdit(client, 'stats')}
@@ -1642,15 +1792,23 @@ export default function ClientsPage() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">Motivo de cierre</h3>
-                        <p className="text-sm text-gray-600 mb-4">Selecciona el motivo por el que se cierra este cliente:</p>
+                        <p className="text-sm text-gray-600 mb-4">
+                            {closureModal.clientId === -1
+                                ? `Selecciona el motivo por el que se cierran ${selectedClients.size} clientes:`
+                                : 'Selecciona el motivo por el que se cierra este cliente:'}
+                        </p>
                         <div className="flex flex-col gap-2">
                             {['Contratad@', 'Sin correos restantes', 'Baja del Cliente', 'Problemas Técnicos'].map((motivo) => (
                                 <button
                                     key={motivo}
                                     onClick={() => {
-                                        const clientId = closureModal.clientId!;
+                                        const isBulk = closureModal.clientId === -1;
                                         setClosureModal({ open: false, clientId: null });
-                                        handleEstadoChange(clientId, 'Closed', motivo);
+                                        if (isBulk) {
+                                            handleBulkEstadoChange('Closed', motivo);
+                                        } else {
+                                            handleEstadoChange(closureModal.clientId!, 'Closed', motivo);
+                                        }
                                     }}
                                     className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all text-sm font-medium text-gray-700"
                                 >
