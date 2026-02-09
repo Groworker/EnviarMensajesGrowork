@@ -8,6 +8,7 @@ import {
 } from '../entities/client-workflow-state.entity';
 import { Client } from '../entities/client.entity';
 import { UpdateWorkflowStateDto } from './dto';
+import { DriveService } from '../drive/drive.service';
 
 export interface PipelineColumn {
   workflowType: WorkflowType;
@@ -60,6 +61,7 @@ export class WorkflowStateService {
     private readonly workflowStateRepository: Repository<ClientWorkflowState>,
     @InjectRepository(Client)
     private readonly clientRepository: Repository<Client>,
+    private readonly driveService: DriveService,
   ) { }
 
   /**
@@ -168,6 +170,25 @@ export class WorkflowStateService {
       // Get the current state data
       const currentState = currentWorkflow ? clientStates.get(currentWorkflow) : null;
 
+      // Check if OLD folder has files (only for manual workflows WKF-1.1 and WKF-1.3)
+      let hasFilesInOldFolder = true; // Default to true for non-manual workflows
+      if (
+        (currentWorkflow === WorkflowType.WKF_1_1 || currentWorkflow === WorkflowType.WKF_1_3) &&
+        client.idCarpetaOld
+      ) {
+        try {
+          hasFilesInOldFolder = await this.driveService.hasFilesInFolder(client.idCarpetaOld);
+          this.logger.debug(
+            `Client ${client.id} OLD folder has files: ${hasFilesInOldFolder}`,
+          );
+        } catch (error) {
+          this.logger.warn(
+            `Failed to check OLD folder for client ${client.id}, assuming has files`,
+          );
+          hasFilesInOldFolder = true; // Default to true on error to avoid blocking
+        }
+      }
+
       // Create card
       const card: ClientWorkflowCard = {
         clientId: client.id,
@@ -182,7 +203,7 @@ export class WorkflowStateService {
         metadata: currentState?.metadata || null,
         driveFolder: client.idCarpetaCliente,
         oldFolderId: client.idCarpetaOld || null,
-        hasFilesInOldFolder: true, // Por ahora asumimos que siempre hay archivos - el frontend manejará la validación
+        hasFilesInOldFolder,
         currentWorkflow: currentWorkflow || WorkflowType.WKF_4, // If all complete, show last workflow
         allWorkflows,
       };

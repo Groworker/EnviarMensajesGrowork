@@ -13,7 +13,7 @@ export class DriveService {
   constructor(
     private configService: ConfigService,
     private cacheService: AttachmentCacheService,
-  ) {}
+  ) { }
 
   /**
    * Creates an authenticated Google Drive client
@@ -102,6 +102,43 @@ export class DriveService {
         this.logger.error(`Failed to download file ${fileId}:`, error);
       }
       throw error;
+    }
+  }
+
+  /**
+   * Checks if a Google Drive folder contains any files
+   * @param folderId - The Google Drive folder ID
+   * @returns True if folder has at least one file, false otherwise
+   */
+  async hasFilesInFolder(folderId: string): Promise<boolean> {
+    if (!folderId) {
+      return false;
+    }
+
+    try {
+      const drive = await this.getDriveClient();
+
+      // Query for any files in the specified folder (not just PDFs)
+      const response = await drive.files.list({
+        q: `'${folderId}' in parents and trashed=false`,
+        fields: 'files(id)',
+        pageSize: 1, // We only need to know if there's at least 1 file
+      });
+
+      const hasFiles = (response.data.files?.length || 0) > 0;
+
+      this.logger.debug(
+        `Folder ${folderId} has files: ${hasFiles}`,
+      );
+
+      return hasFiles;
+    } catch (error) {
+      this.logger.error(
+        `Failed to check files in folder ${folderId}:`,
+        error instanceof Error ? error.message : error,
+      );
+      // Return true on error to avoid blocking execution
+      return true;
     }
   }
 

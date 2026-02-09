@@ -5,14 +5,16 @@ import { WorkflowStateController } from './workflow-state.controller';
 import { ClientWorkflowState } from '../entities/client-workflow-state.entity';
 import { Client } from '../entities/client.entity';
 import { N8nModule } from '../n8n/n8n.module';
+import { DriveModule } from '../drive/drive.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([ClientWorkflowState, Client]),
     forwardRef(() => N8nModule),
+    DriveModule,
   ],
   controllers: [WorkflowStateController],
   providers: [WorkflowStateService],
   exports: [WorkflowStateService],
 })
-export class WorkflowStateModule {}
+export class WorkflowStateModule { }
