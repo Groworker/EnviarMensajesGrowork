@@ -103,26 +103,6 @@ export class Client {
   @Column({ type: 'text', nullable: true })
   address: string;
 
-  // Drive folder URLs
-  @Column({ name: 'drive_client_folder_url', type: 'text', nullable: true })
-  driveClientFolderUrl: string;
-
-  @Column({ name: 'drive_cv_folder_url', type: 'text', nullable: true })
-  driveCvFolderUrl: string;
-
-  @Column({ name: 'drive_cv_old_folder_url', type: 'text', nullable: true })
-  driveCvOldFolderUrl: string;
-
-  @Column({ name: 'drive_cv_new_folder_url', type: 'text', nullable: true })
-  driveCvNewFolderUrl: string;
-
-  @Column({
-    name: 'drive_cv_definitiva_folder_url',
-    type: 'text',
-    nullable: true,
-  })
-  driveCvDefinitivaFolderUrl: string;
-
   @Column({ type: 'text', nullable: true })
   notes: string;
 
@@ -138,10 +118,6 @@ export class Client {
 
   @Column({ name: 'last_email_sent_at', type: 'timestamp', nullable: true })
   lastEmailSentAt: Date;
-
-  // Discord integration
-  @Column({ name: 'discord_channel_id', length: 100, nullable: true })
-  discordChannelId: string;
 
   // Relation to Send Settings (One-to-One)
   @OneToOne(() => ClientSendSettings, (settings) => settings.client)

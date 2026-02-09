@@ -5,8 +5,6 @@ import {
   IsNotEmpty,
   MaxLength,
   MinLength,
-  IsPhoneNumber,
-  IsUrl,
 } from 'class-validator';
 
 export class CreateClientDto {
@@ -62,14 +60,6 @@ export class CreateClientDto {
   @IsOptional()
   @MaxLength(100)
   estado?: string;
-
-  @IsOptional()
-  @IsUrl({}, { each: true, message: 'Invalid Drive URL format' })
-  driveClientFolderUrl?: string;
-
-  @IsOptional()
-  @IsUrl()
-  driveCvFolderUrl?: string;
 
   @IsOptional()
   notes?: string;
