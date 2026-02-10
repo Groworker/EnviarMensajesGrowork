@@ -119,7 +119,7 @@ export class NotificationsService {
             'Ze3INzogY594XOCg': NotificationType.WORKFLOW_WKF1_1,
             'Ajfl4VnlJbPlA03E': NotificationType.WORKFLOW_WKF1_2,
             'EoSIHDe8HPHQrUWT': NotificationType.WORKFLOW_WKF1_3,
-            '49XoEhgqjyRt3LSg': NotificationType.WORKFLOW_WKF4,
+            '49XoEhgqjyRt3LSg': NotificationType.WORKFLOW_WKF1_4,
         };
 
         return this.create({

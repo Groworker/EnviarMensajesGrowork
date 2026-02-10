@@ -19,7 +19,7 @@ export class N8nService {
     [WorkflowType.WKF_1_1]: process.env.N8N_WKF1_1_WEBHOOK_URL || '', // Manual trigger from UI
     [WorkflowType.WKF_1_2]: '', // Auto-triggered every 5 hours, no manual trigger needed
     [WorkflowType.WKF_1_3]: process.env.N8N_WKF1_3_WEBHOOK_URL || '', // Manual trigger from UI
-    [WorkflowType.WKF_4]: '', // Auto-triggered from Zoho CRM, no manual trigger needed
+    [WorkflowType.WKF_1_4]: '', // Auto-triggered after WKF-1.3, no manual trigger needed
   };
 
   constructor(

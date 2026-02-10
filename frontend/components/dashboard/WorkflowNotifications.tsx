@@ -47,7 +47,7 @@ const WORKFLOW_NAMES: Record<string, string> = {
     'Ze3INzogY594XOCg': 'WKF-1.1: Asignar Creador',
     'Ajfl4VnlJbPlA03E': 'WKF-1.2: Nuevo Archivo NEW',
     'EoSIHDe8HPHQrUWT': 'WKF-1.3: Mover CV a DEF',
-    '49XoEhgqjyRt3LSg': 'WKF-4: Email Corporativo'
+    '49XoEhgqjyRt3LSg': 'WKF-1.4: Email Corporativo'
 };
 
 export default function WorkflowNotifications() {

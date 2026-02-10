@@ -32,7 +32,7 @@ const WORKFLOW_TITLES: Record<string, { title: string; description: string; requ
     'WKF-1.1': { title: 'WKF-1.1: Asignar Creador de CV', description: 'Requiere acción manual', requiresManualAction: true },
     'WKF-1.2': { title: 'WKF-1.2: Detectar Archivo Nuevo', description: 'Auto-ejecutado cada 5 horas', requiresManualAction: false },
     'WKF-1.3': { title: 'WKF-1.3: Mover CV a Definitiva', description: 'Requiere acción manual', requiresManualAction: true },
-    'WKF-4': { title: 'WKF-4: Email Corporativo', description: 'Auto-ejecutado desde Zoho CRM', requiresManualAction: false },
+    'WKF-1.4': { title: 'WKF-1.4: Email Corporativo', description: 'Auto-ejecutado tras WKF-1.3', requiresManualAction: false },
 };
 
 export default function WorkflowRoadmapModal({

@@ -51,7 +51,7 @@ export const WORKFLOW_ORDER: WorkflowType[] = [
   WorkflowType.WKF_1_1,
   WorkflowType.WKF_1_2,
   WorkflowType.WKF_1_3,
-  WorkflowType.WKF_4,
+  WorkflowType.WKF_1_4,
 ];
 
 @Injectable()
@@ -123,9 +123,9 @@ export class WorkflowStateService {
           requiresManualAction: true,
         },
         {
-          type: WorkflowType.WKF_4,
-          title: 'WKF-4',
-          description: 'Auto-ejecutado desde Zoho CRM',
+          type: WorkflowType.WKF_1_4,
+          title: 'WKF-1.4',
+          description: 'Auto-ejecutado tras WKF-1.3',
           requiresManualAction: false,
         },
         {
@@ -208,7 +208,7 @@ export class WorkflowStateService {
         newFolderId: client.idCarpetaNew || null,
         hasFilesInOldFolder,
         cvCreatorName: client.cvCreator?.nombre || null,
-        currentWorkflow: currentWorkflow || WorkflowType.WKF_4, // If all complete, show last workflow
+        currentWorkflow: currentWorkflow || WorkflowType.WKF_1_4, // If all complete, show last workflow
         allWorkflows,
       };
 

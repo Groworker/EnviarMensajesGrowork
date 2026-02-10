@@ -13,7 +13,7 @@ export enum NotificationType {
     WORKFLOW_WKF1_1 = 'workflow_wkf1_1',
     WORKFLOW_WKF1_2 = 'workflow_wkf1_2',
     WORKFLOW_WKF1_3 = 'workflow_wkf1_3',
-    WORKFLOW_WKF4 = 'workflow_wkf4',
+    WORKFLOW_WKF1_4 = 'workflow_wkf1_4',
     CLIENT_AUTO_DELETED = 'client_auto_deleted',
     CLIENT_MANUAL_DELETED = 'client_manual_deleted',
     EMAIL_SENT = 'email_sent',

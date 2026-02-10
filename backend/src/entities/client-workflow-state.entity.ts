@@ -15,7 +15,7 @@ export enum WorkflowType {
   WKF_1_1 = 'WKF-1.1',
   WKF_1_2 = 'WKF-1.2',
   WKF_1_3 = 'WKF-1.3',
-  WKF_4 = 'WKF-4',
+  WKF_1_4 = 'WKF-1.4',
 }
 
 export enum WorkflowStatus {

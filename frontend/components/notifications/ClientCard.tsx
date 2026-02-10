@@ -26,7 +26,7 @@ export default function ClientCard({
     'WKF-1.1': { bg: 'bg-purple-50 border-purple-300', dot: 'bg-purple-500' },
     'WKF-1.2': { bg: 'bg-teal-50 border-teal-200', dot: 'bg-teal-500' },
     'WKF-1.3': { bg: 'bg-amber-50 border-amber-300', dot: 'bg-amber-500' },
-    'WKF-4': { bg: 'bg-indigo-50 border-indigo-200', dot: 'bg-indigo-500' },
+    'WKF-1.4': { bg: 'bg-indigo-50 border-indigo-200', dot: 'bg-indigo-500' },
   };
 
   const getStatusColor = () => {

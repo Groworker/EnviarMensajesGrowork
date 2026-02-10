@@ -11,7 +11,7 @@ const WORKFLOW_COLORS: Record<string, { accent: string; headerBg: string }> = {
   'WKF-1.1': { accent: 'border-t-purple-500', headerBg: 'bg-purple-50' },
   'WKF-1.2': { accent: 'border-t-teal-500', headerBg: 'bg-teal-50' },
   'WKF-1.3': { accent: 'border-t-amber-500', headerBg: 'bg-amber-50' },
-  'WKF-4': { accent: 'border-t-indigo-500', headerBg: 'bg-indigo-50' },
+  'WKF-1.4': { accent: 'border-t-indigo-500', headerBg: 'bg-indigo-50' },
 };
 
 export default function WorkflowColumn({
