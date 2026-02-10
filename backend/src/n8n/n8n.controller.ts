@@ -133,6 +133,19 @@ export class N8nController {
             const notificationType = typeMap[payload.workflowId] || NotificationType.SYSTEM;
             const workflowType = workflowTypeMap[payload.workflowId];
 
+            // Skip notifications and workflow updates for closed clients
+            if (clientId) {
+                const client = await this.clientsRepository.findOne({ where: { id: clientId } });
+                if (client?.estado === 'Closed') {
+                    this.logger.log(`Skipping webhook for closed client ${clientId} (${client.nombre} ${client.apellido})`);
+                    return {
+                        success: true,
+                        message: 'Webhook skipped - client is closed',
+                        clientId,
+                    };
+                }
+            }
+
             // Create notification
             await this.notificationsService.notifyWorkflowEvent(
                 payload.workflowId,

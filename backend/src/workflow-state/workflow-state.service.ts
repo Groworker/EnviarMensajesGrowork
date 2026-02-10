@@ -142,6 +142,9 @@ export class WorkflowStateService {
 
     // Process each client
     for (const client of clients) {
+      // Skip clients with 'Closed' status - they don't need workflow tracking
+      if (client.estado === 'Closed') continue;
+
       const clientStates = statesByClient.get(client.id);
       if (!clientStates || clientStates.size === 0) continue;
 
