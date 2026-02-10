@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ClientWorkflowCard } from '@/app/notifications/page';
-import { ExternalLink, FolderOpen, ListOrdered, Play } from 'lucide-react';
+import { ExternalLink, FolderOpen, ListOrdered, Play, AlertTriangle } from 'lucide-react';
 import WorkflowRoadmapModal from './WorkflowRoadmapModal';
 import FilePickerModal from './FilePickerModal';
 import api from '@/lib/api';
@@ -77,14 +77,23 @@ export default function ClientCard({
         onClick={() => setIsModalOpen(true)}
         className={`p-3 rounded-lg border-2 ${getStatusColor()} cursor-pointer hover:shadow-md transition-shadow`}
       >
-        {/* Client Name and Status */}
+        {/* Client Name + Status Badge */}
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${getStatusDot()}`}></div>
-            <h4 className="font-semibold text-gray-900 text-sm">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${getStatusDot()}`}></div>
+            <h4 className="font-semibold text-gray-900 text-sm truncate">
               {client.clientName || `Cliente ${client.clientId}`}
             </h4>
           </div>
+          <span className={`flex-shrink-0 px-1.5 py-0.5 text-[10px] font-bold rounded ${
+            client.status === 'ERROR'
+              ? 'bg-red-100 text-red-700 border border-red-300'
+              : client.status === 'OK'
+                ? 'bg-green-100 text-green-700 border border-green-300'
+                : 'bg-orange-100 text-orange-700 border border-orange-300'
+          }`}>
+            {client.status}
+          </span>
         </div>
 
         {/* Estado */}
@@ -115,10 +124,38 @@ export default function ClientCard({
           </div>
         )}
 
-        {/* Error Message Preview */}
-        {client.errorMessage && (
-          <div className="text-xs text-red-600 mb-2 line-clamp-2">
-            {client.errorMessage}
+        {/* Error Banner - prominent for current workflow error */}
+        {client.status === 'ERROR' && (
+          <div className="flex items-start gap-2 p-2 bg-red-50 border border-red-300 rounded-md mb-2">
+            <AlertTriangle size={14} className="text-red-500 flex-shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-red-700">
+                Error en {client.currentWorkflow}
+              </p>
+              {client.errorMessage && (
+                <p className="text-xs text-red-600 mt-0.5 line-clamp-2">
+                  {client.errorMessage}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Show errors from other workflows (not the current one) */}
+        {client.status !== 'ERROR' && client.allWorkflows?.some(
+          (wf) => wf.status === 'ERROR' && wf.workflowType !== client.currentWorkflow
+        ) && (
+          <div className="flex items-start gap-2 p-2 bg-orange-50 border border-orange-300 rounded-md mb-2">
+            <AlertTriangle size={14} className="text-orange-500 flex-shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              {client.allWorkflows.filter(
+                (wf) => wf.status === 'ERROR' && wf.workflowType !== client.currentWorkflow
+              ).map((wf) => (
+                <p key={wf.workflowType} className="text-xs font-semibold text-orange-700">
+                  Error previo en {wf.workflowType}
+                </p>
+              ))}
+            </div>
           </div>
         )}
 
