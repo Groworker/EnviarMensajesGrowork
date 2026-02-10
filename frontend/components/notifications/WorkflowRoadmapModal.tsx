@@ -28,11 +28,11 @@ export interface RoadmapModalProps {
 }
 
 const WORKFLOW_TITLES: Record<string, { title: string; description: string; requiresManualAction: boolean }> = {
-    'WKF-1': { title: 'WKF-1: Creación de Carpetas y CV', description: 'Auto-ejecutado desde Zoho CRM', requiresManualAction: false },
+    'WKF-1': { title: 'WKF-1: Crear Estructura Drive del Cliente', description: 'Auto-ejecutado desde Zoho CRM', requiresManualAction: false },
     'WKF-1.1': { title: 'WKF-1.1: Asignar Creador de CV', description: 'Requiere acción manual', requiresManualAction: true },
-    'WKF-1.2': { title: 'WKF-1.2: Detectar Archivo Nuevo', description: 'Auto-ejecutado cada 5 horas', requiresManualAction: false },
-    'WKF-1.3': { title: 'WKF-1.3: Mover CV a Definitiva', description: 'Requiere acción manual', requiresManualAction: true },
-    'WKF-1.4': { title: 'WKF-1.4: Email Corporativo', description: 'Auto-ejecutado tras WKF-1.3', requiresManualAction: false },
+    'WKF-1.2': { title: 'WKF-1.2: Detectar Nuevo CV Entregado', description: 'Auto-ejecutado cada 5 horas', requiresManualAction: false },
+    'WKF-1.3': { title: 'WKF-1.3: Aprobar CV y Mover a Definitiva', description: 'Requiere acción manual', requiresManualAction: true },
+    'WKF-1.4': { title: 'WKF-1.4: Crear Email Corporativo', description: 'Auto-ejecutado tras WKF-1.3', requiresManualAction: false },
 };
 
 export default function WorkflowRoadmapModal({

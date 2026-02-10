@@ -101,31 +101,31 @@ export class WorkflowStateService {
         {
           type: WorkflowType.WKF_1,
           title: 'WKF-1',
-          description: 'Auto-ejecutado desde Zoho CRM',
+          description: 'Crear Estructura Drive del Cliente',
           requiresManualAction: false,
         },
         {
           type: WorkflowType.WKF_1_1,
           title: 'WKF-1.1',
-          description: 'Revisar carpeta y ejecutar manualmente',
+          description: 'Asignar Creador de CV',
           requiresManualAction: true,
         },
         {
           type: WorkflowType.WKF_1_2,
           title: 'WKF-1.2',
-          description: 'Auto-ejecutado cada 5 horas',
+          description: 'Detectar Nuevo CV Entregado',
           requiresManualAction: false,
         },
         {
           type: WorkflowType.WKF_1_3,
           title: 'WKF-1.3',
-          description: 'Revisar carpeta y ejecutar manualmente',
+          description: 'Aprobar CV y Mover a Definitiva',
           requiresManualAction: true,
         },
         {
           type: WorkflowType.WKF_1_4,
           title: 'WKF-1.4',
-          description: 'Auto-ejecutado tras WKF-1.3',
+          description: 'Crear Email Corporativo',
           requiresManualAction: false,
         },
         {
