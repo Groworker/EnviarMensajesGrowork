@@ -13,6 +13,7 @@ interface SyncResponse {
   created: number;
   updated: number;
   skipped: number;
+  deleted: number;
 }
 
 @Controller('zoho-sync')
@@ -47,6 +48,7 @@ export class ZohoSyncController {
       created: result.created,
       updated: result.updated,
       skipped: result.skipped,
+      deleted: result.deleted,
     };
   }
 
@@ -66,6 +68,7 @@ export class ZohoSyncController {
       created: result.created,
       updated: result.updated,
       skipped: result.skipped,
+      deleted: result.deleted,
     };
   }
 }

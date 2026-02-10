@@ -219,6 +219,55 @@ export class ZohoService {
   }
 
   /**
+   * Get deleted contacts from Zoho CRM (for sync)
+   * Uses the deleted records API to detect contacts removed from Zoho
+   */
+  async getDeletedContacts(
+    modifiedSince?: Date,
+    page: number = 1,
+    perPage: number = 200,
+  ): Promise<{ data: Array<{ id: string; deleted_time: string }> | null; info: { more_records: boolean } }> {
+    try {
+      const accessToken = await this.getAccessToken();
+
+      const headers: Record<string, string> = {
+        Authorization: `Zoho-oauthtoken ${accessToken}`,
+      };
+
+      if (modifiedSince) {
+        headers['If-Modified-Since'] = modifiedSince.toISOString();
+      }
+
+      const response = await this.axiosInstance.get('/crm/v2/Contacts/deleted', {
+        headers,
+        params: {
+          type: 'all',
+          page,
+          per_page: perPage,
+        },
+      });
+
+      if (response.status === 204 || !response.data) {
+        return { data: null, info: { more_records: false } };
+      }
+
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.status === 304 || error.response?.status === 204) {
+        return { data: null, info: { more_records: false } };
+      }
+
+      this.logger.error(
+        'Failed to fetch deleted contacts from Zoho',
+        error.response?.data || error.message,
+      );
+      throw new Error(
+        `Failed to fetch deleted Zoho contacts: ${error.response?.data?.message || error.message}`,
+      );
+    }
+  }
+
+  /**
    * Fields to fetch from Zoho CRM for sync
    */
   private readonly syncFields = [

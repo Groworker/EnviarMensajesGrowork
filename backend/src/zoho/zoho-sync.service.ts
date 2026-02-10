@@ -34,15 +34,16 @@ export class ZohoSyncService {
     created: number;
     updated: number;
     skipped: number;
+    deleted: number;
   }> {
     if (!this.syncEnabled) {
       this.logger.debug('Zoho sync is disabled. Skipping.');
-      return { created: 0, updated: 0, skipped: 0 };
+      return { created: 0, updated: 0, skipped: 0, deleted: 0 };
     }
 
     if (this.isSyncing) {
       this.logger.debug('Zoho sync already in progress. Skipping.');
-      return { created: 0, updated: 0, skipped: 0 };
+      return { created: 0, updated: 0, skipped: 0, deleted: 0 };
     }
 
     this.isSyncing = true;
@@ -102,15 +103,19 @@ export class ZohoSyncService {
         }
       }
 
+      // Sync deleted contacts from Zoho
+      const totalDeleted = await this.syncDeletedContacts(lastModified);
+
       const duration = Date.now() - startTime;
       this.logger.log(
-        `Zoho delta sync completed in ${duration}ms. Created: ${totalCreated}, Updated: ${totalUpdated}, Skipped: ${totalSkipped}`,
+        `Zoho delta sync completed in ${duration}ms. Created: ${totalCreated}, Updated: ${totalUpdated}, Skipped: ${totalSkipped}, Deleted: ${totalDeleted}`,
       );
 
       return {
         created: totalCreated,
         updated: totalUpdated,
         skipped: totalSkipped,
+        deleted: totalDeleted,
       };
     } catch (error: any) {
       this.logger.error('Zoho delta sync failed', error.message);
@@ -123,11 +128,13 @@ export class ZohoSyncService {
   /**
    * Full sync - fetches all contacts from Zoho
    * Use for initial setup or recovery
+   * Also detects and soft-deletes clients that no longer exist in Zoho
    */
   async handleFullSync(): Promise<{
     created: number;
     updated: number;
     skipped: number;
+    deleted: number;
   }> {
     if (this.isSyncing) {
       throw new Error('Sync already in progress');
@@ -144,6 +151,7 @@ export class ZohoSyncService {
       let totalUpdated = 0;
       let totalSkipped = 0;
       let hasMore = true;
+      const zohoIdsInCRM = new Set<string>();
 
       while (hasMore) {
         const response = await this.zohoService.getAllContacts(
@@ -163,6 +171,7 @@ export class ZohoSyncService {
         );
 
         for (const zohoContact of response.data) {
+          zohoIdsInCRM.add(zohoContact.id);
           const result = await this.syncContact(zohoContact);
           if (result === 'created') totalCreated++;
           else if (result === 'updated') totalUpdated++;
@@ -178,15 +187,37 @@ export class ZohoSyncService {
         }
       }
 
+      // Detect clients in local DB that no longer exist in Zoho and soft-delete them
+      let totalDeleted = 0;
+      if (zohoIdsInCRM.size > 0) {
+        const localClients = await this.clientRepository.find({
+          where: { deletedAt: null as any },
+          select: ['id', 'zohoId', 'nombre', 'apellido'],
+        });
+
+        for (const client of localClients) {
+          if (!zohoIdsInCRM.has(client.zohoId)) {
+            client.deletedAt = new Date();
+            client.deletionReason = 'Eliminado desde Zoho CRM (detectado en full sync)';
+            await this.clientRepository.save(client);
+            this.logger.log(
+              `Soft-deleted client ${client.id} (${client.nombre} ${client.apellido}) - not found in Zoho CRM`,
+            );
+            totalDeleted++;
+          }
+        }
+      }
+
       const duration = Date.now() - startTime;
       this.logger.log(
-        `Full sync completed in ${duration}ms. Created: ${totalCreated}, Updated: ${totalUpdated}, Skipped: ${totalSkipped}`,
+        `Full sync completed in ${duration}ms. Created: ${totalCreated}, Updated: ${totalUpdated}, Skipped: ${totalSkipped}, Deleted: ${totalDeleted}`,
       );
 
       return {
         created: totalCreated,
         updated: totalUpdated,
         skipped: totalSkipped,
+        deleted: totalDeleted,
       };
     } catch (error: any) {
       this.logger.error('Full sync failed', error.message);
@@ -318,6 +349,62 @@ export class ZohoSyncService {
     }
 
     return null;
+  }
+
+  /**
+   * Sync deleted contacts from Zoho CRM
+   * Fetches the deleted records API and soft-deletes matching local clients
+   */
+  private async syncDeletedContacts(since: Date): Promise<number> {
+    let totalDeleted = 0;
+    let page = 1;
+    let hasMore = true;
+
+    try {
+      while (hasMore) {
+        const response = await this.zohoService.getDeletedContacts(since, page, this.batchSize);
+
+        if (!response.data || response.data.length === 0) {
+          break;
+        }
+
+        for (const deletedRecord of response.data) {
+          try {
+            const client = await this.clientRepository.findOne({
+              where: { zohoId: deletedRecord.id, deletedAt: null as any },
+            });
+
+            if (client) {
+              client.deletedAt = new Date();
+              client.deletionReason = 'Eliminado desde Zoho CRM';
+              await this.clientRepository.save(client);
+              this.logger.log(
+                `Soft-deleted client ${client.id} (${client.nombre} ${client.apellido}) - deleted in Zoho CRM`,
+              );
+              totalDeleted++;
+            }
+          } catch (error: any) {
+            this.logger.error(
+              `Failed to soft-delete client for Zoho ID ${deletedRecord.id}: ${error.message}`,
+            );
+          }
+        }
+
+        hasMore = response.info?.more_records || false;
+        page++;
+
+        if (hasMore) {
+          await this.delay(600);
+        }
+      }
+    } catch (error: any) {
+      // Don't fail the entire sync if deleted contacts API fails
+      this.logger.warn(
+        `Failed to sync deleted contacts from Zoho: ${error.message}`,
+      );
+    }
+
+    return totalDeleted;
   }
 
   /**

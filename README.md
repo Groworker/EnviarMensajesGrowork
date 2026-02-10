@@ -410,8 +410,8 @@ proyecto/
 - **Accion:** Mueve CV aprobado de NEW a DEFINITIVA
 - **Webhook:** Notifica al backend
 
-### WKF-4: Email Corporativo
-- **Trigger:** Automatico cuando se crea contacto en Zoho (paralelo a WKF-1)
+### WKF-1.4: Email Corporativo
+- **Trigger:** Automatico cuando se activa el workflow 1.3
 - **Flujo completo:**
   1. `GuardarDatos` - Almacena nombre, apellido, idCliente
   2. `Leer - Dominios Activos` - GET /api/dominios (lee dominios del backend)
