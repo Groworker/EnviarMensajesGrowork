@@ -9,6 +9,7 @@ import { JobOffer } from '../entities/job-offer.entity';
 import { EmailSend } from '../entities/email-send.entity';
 import { ClientSendSettings } from '../entities/client-send-settings.entity';
 import { EmailReputation } from '../entities/email-reputation.entity';
+import { Client } from '../entities/client.entity';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { EmailReputation } from '../entities/email-reputation.entity';
       EmailSend,
       ClientSendSettings,
       EmailReputation,
+      Client,
     ]),
     EmailModule,
     AiModule,
