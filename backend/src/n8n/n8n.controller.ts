@@ -113,7 +113,8 @@ export class N8nController {
                 'xCcVhFUwAmDJ4JOT': NotificationType.WORKFLOW_WKF1_1, // New ID
                 'Ajfl4VnlJbPlA03E': NotificationType.WORKFLOW_WKF1_2, // Old ID
                 'beNsoQ2JZOdtusf2': NotificationType.WORKFLOW_WKF1_2, // New ID
-                'EoSIHDe8HPHQrUWT': NotificationType.WORKFLOW_WKF1_3,
+                'EoSIHDe8HPHQrUWT': NotificationType.WORKFLOW_WKF1_3, // Old ID
+                'B9M9uOfsWNr0U59U': NotificationType.WORKFLOW_WKF1_3, // New ID
                 '49XoEhgqjyRt3LSg': NotificationType.WORKFLOW_WKF1_4, // Old ID
                 'ItDz2wWOVJbusbXV': NotificationType.WORKFLOW_WKF1_4, // New ID
             };
@@ -125,13 +126,31 @@ export class N8nController {
                 'xCcVhFUwAmDJ4JOT': WorkflowType.WKF_1_1, // New ID
                 'Ajfl4VnlJbPlA03E': WorkflowType.WKF_1_2, // Old ID
                 'beNsoQ2JZOdtusf2': WorkflowType.WKF_1_2, // New ID
-                'EoSIHDe8HPHQrUWT': WorkflowType.WKF_1_3,
+                'EoSIHDe8HPHQrUWT': WorkflowType.WKF_1_3, // Old ID
+                'B9M9uOfsWNr0U59U': WorkflowType.WKF_1_3, // New ID
                 '49XoEhgqjyRt3LSg': WorkflowType.WKF_1_4, // Old ID
                 'ItDz2wWOVJbusbXV': WorkflowType.WKF_1_4, // New ID
             };
 
             const notificationType = typeMap[payload.workflowId] || NotificationType.SYSTEM;
-            const workflowType = workflowTypeMap[payload.workflowId];
+            let workflowType = workflowTypeMap[payload.workflowId];
+
+            // Fallback: resolve workflow type by event name if workflowId is not mapped
+            if (!workflowType && payload.event) {
+                const eventToWorkflowType: Record<string, WorkflowType> = {
+                    'carpetas_y_cv_creados': WorkflowType.WKF_1,
+                    'creador_asignado': WorkflowType.WKF_1_1,
+                    'nuevo_archivo_detectado': WorkflowType.WKF_1_2,
+                    'cv_movido_a_definitiva': WorkflowType.WKF_1_3,
+                    'email_corporativo_creado': WorkflowType.WKF_1_4,
+                };
+                workflowType = eventToWorkflowType[payload.event];
+                if (workflowType) {
+                    this.logger.warn(
+                        `WorkflowId "${payload.workflowId}" not in map, resolved to ${workflowType} via event "${payload.event}"`,
+                    );
+                }
+            }
 
             // Skip notifications and workflow updates for closed clients
             if (clientId) {
