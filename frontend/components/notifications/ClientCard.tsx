@@ -20,6 +20,8 @@ export default function ClientCard({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [showFilePicker, setShowFilePicker] = useState(false);
+  const isManualWorkflow = client.currentWorkflow === 'WKF-1.1' || client.currentWorkflow === 'WKF-1.3';
+  const showManualActions = isManualWorkflow && (client.status === 'PENDING' || client.status === 'ERROR');
 
   const WORKFLOW_CARD_COLORS: Record<string, { bg: string; dot: string }> = {
     'WKF-1': { bg: 'bg-blue-50 border-blue-200', dot: 'bg-blue-500' },
@@ -160,8 +162,8 @@ export default function ClientCard({
         )}
 
         {/* Buttons Section */}
-        {(client.currentWorkflow === 'WKF-1.1' || client.currentWorkflow === 'WKF-1.3') && client.status === 'PENDING' ? (
-          // 3-button layout for manual workflows
+        {showManualActions ? (
+          // 3-button layout for manual workflows (pending and error)
           <div className="space-y-2">
             {/* Row 1: Ver Roadmap Completo */}
             <button
@@ -229,7 +231,15 @@ export default function ClientCard({
                 className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Play size={14} />
-                <span>{isExecuting ? 'Ejecutando...' : client.currentWorkflow === 'WKF-1.3' ? 'Seleccionar CV' : 'Ejecutar'}</span>
+                <span>
+                  {isExecuting
+                    ? 'Ejecutando...'
+                    : client.status === 'ERROR'
+                      ? 'Intentar de nuevo'
+                      : client.currentWorkflow === 'WKF-1.3'
+                        ? 'Seleccionar CV'
+                        : 'Ejecutar'}
+                </span>
               </button>
             </div>
 

@@ -219,8 +219,11 @@ export default function WorkflowRoadmapModal({
                                                     </a>
                                                 )}
 
-                                                {/* Execute Button for Manual Workflows */}
-                                                {info.requiresManualAction && workflow.status === 'PENDING' && index > 0 && allWorkflows[index - 1].status === 'OK' && (
+                                                {/* Execute/Retry Button for Manual Workflows */}
+                                                {info.requiresManualAction &&
+                                                    (workflow.status === 'PENDING' || workflow.status === 'ERROR') &&
+                                                    index > 0 &&
+                                                    allWorkflows[index - 1].status === 'OK' && (
                                                     <button
                                                         onClick={() => {
                                                             if (workflow.workflowType === 'WKF-1.3') {
@@ -235,7 +238,9 @@ export default function WorkflowRoadmapModal({
                                                         <Play size={16} />
                                                         {executingWorkflow === workflow.workflowType
                                                             ? 'Ejecutando...'
-                                                            : workflow.workflowType === 'WKF-1.3'
+                                                            : workflow.status === 'ERROR'
+                                                                ? 'Intentar de nuevo'
+                                                                : workflow.workflowType === 'WKF-1.3'
                                                                 ? 'Seleccionar CV y Ejecutar'
                                                                 : `Ejecutar ${workflow.workflowType}`}
                                                     </button>
