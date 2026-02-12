@@ -123,7 +123,7 @@ export class Client {
   @JoinColumn({ name: 'pareja_id' })
   pareja: Client | null;
 
-  @Column({ name: 'is_primary_partner', nullable: true, default: null })
+  @Column({ name: 'is_primary_partner', type: 'boolean', nullable: true, default: null })
   isPrimaryPartner: boolean | null;
 
   // Auto-deletion tracking fields
