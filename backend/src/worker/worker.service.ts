@@ -33,6 +33,8 @@ export class WorkerService {
     private settingsRepository: Repository<ClientSendSettings>,
     @InjectRepository(EmailReputation)
     private reputationRepository: Repository<EmailReputation>,
+    @InjectRepository(Client)
+    private clientRepository: Repository<Client>,
     private emailService: EmailService,
     private aiService: AiService,
     private driveService: DriveService,
@@ -188,11 +190,16 @@ export class WorkerService {
     settings: ClientSendSettings,
     limit: number,
   ): Promise<JobOffer[]> {
-    // 1. Get IDs of already sent offers for this client
+    // 1. Get IDs of already sent offers for this client (and partner if couple)
+    const clientIds = [client.id];
+    if (client.parejaId) {
+      clientIds.push(client.parejaId);
+    }
+
     const sentOffers = await this.emailSendRepository
       .createQueryBuilder('s')
       .select('s.job_offer_id')
-      .where('s.client_id = :clientId', { clientId: client.id })
+      .where('s.client_id IN (:...clientIds)', { clientIds })
       .getRawMany<{ job_offer_id: number }>();
 
     const sentIds = sentOffers.map((s) => s.job_offer_id);
@@ -323,13 +330,28 @@ export class WorkerService {
     await this.emailSendRepository.save(emailSend);
 
     try {
-      // 3. Get client info
+      // 3. Get client info and load partner if exists
       const client = job.client;
       const senderEmail = client.emailOperativo || client.email;
       if (!client || !senderEmail) {
         throw new Error(
           `Client email is missing for job ${job.id} (client ID: ${client?.id})`,
         );
+      }
+
+      let pareja: Client | null = null;
+      if (client.parejaId) {
+        pareja = await this.clientRepository.findOne({
+          where: { id: client.parejaId },
+        });
+      }
+
+      // Also check partner hasn't already sent to this offer
+      if (pareja) {
+        const parejaExists = await this.emailSendRepository.findOne({
+          where: { clientId: pareja.id, jobOfferId: offer.id },
+        });
+        if (parejaExists) return;
       }
 
       // 4. Generate email content with AI (or fallback to template)
@@ -342,29 +364,37 @@ export class WorkerService {
         const aiResult = await this.aiService.generateEmailContent(
           client,
           offer,
+          pareja,
         );
         subject = aiResult.subject;
         content = aiResult.htmlContent;
         aiGenerated = true;
         aiModel = this.configService.get<string>('openai.model') ?? null;
         this.logger.log(
-          `AI generated email for client ${client.id} to ${offer.email}`,
+          `AI generated email for client ${client.id}${pareja ? ` (couple with ${pareja.id})` : ''} to ${offer.email}`,
         );
       } catch (aiError) {
         // Fallback to template if AI fails
         this.logger.warn(
           `AI generation failed, using fallback template: ${aiError}`,
         );
-        subject = `Candidatura para ${offer.puesto} - ${client.nombre} ${client.apellido}`;
-        content = this.generateEmailContent(client, offer);
+        const clientName = pareja
+          ? `${client.nombre} y ${pareja.nombre}`
+          : `${client.nombre} ${client.apellido}`;
+        subject = `Candidatura para ${offer.puesto} - ${clientName}`;
+        content = this.generateEmailContent(client, offer, pareja);
       }
 
-      // 5. Get attachments from Google Drive (DEFINITIVA folder)
+      // 5. Get attachments from Google Drive (DEFINITIVA folder - both partners if couple)
       let attachments: EmailAttachment[] = [];
       try {
-        attachments = await this.driveService.getAttachmentsForClient(client);
+        if (pareja) {
+          attachments = await this.driveService.getAttachmentsForCouple(client, pareja);
+        } else {
+          attachments = await this.driveService.getAttachmentsForClient(client);
+        }
         this.logger.log(
-          `Retrieved ${attachments.length} attachments for client ${client.id}`,
+          `Retrieved ${attachments.length} attachments for client ${client.id}${pareja ? ` + partner ${pareja.id}` : ''}`,
         );
       } catch (driveError) {
         this.logger.warn(
@@ -440,13 +470,38 @@ export class WorkerService {
     }
   }
 
-  private generateEmailContent(client: Client, offer: JobOffer): string {
-    const clientName = `${client.nombre} ${client.apellido}`;
+  private generateEmailContent(client: Client, offer: JobOffer, pareja?: Client | null): string {
+    const isCouple = !!pareja;
+    const clientName = isCouple
+      ? `${client.nombre} ${client.apellido} y ${pareja.nombre} ${pareja.apellido}`
+      : `${client.nombre} ${client.apellido}`;
     const position = offer.puesto || 'el puesto disponible';
     const company = offer.empresa || offer.hotel || 'su empresa';
     const location = offer.ciudad
       ? `${offer.ciudad}${offer.pais ? `, ${offer.pais}` : ''}`
       : offer.pais || '';
+
+    const introText = isCouple
+      ? `Nuestros nombres son <span class="highlight">${clientName}</span> y nos dirigimos a ustedes con gran interés
+        en la posición de <span class="highlight">${position}</span>${location ? ` en ${location}` : ''}.`
+      : `Mi nombre es <span class="highlight">${clientName}</span> y me dirijo a ustedes con gran interés
+        en la posición de <span class="highlight">${position}</span>${location ? ` en ${location}` : ''}.`;
+
+    const experienceText = isCouple
+      ? `Contamos con experiencia en el sector ${client.industria || 'hotelero'} y estamos entusiasmados por
+        la oportunidad de formar parte de su equipo. Adjuntamos nuestros CVs para su consideración.`
+      : `Cuento con experiencia en el sector ${client.industria || 'hotelero'} y estoy entusiasmado/a por
+        la oportunidad de formar parte de su equipo. Adjunto mi CV para su consideración.`;
+
+    const availabilityText = isCouple
+      ? `Quedamos a su disposición para ampliar cualquier información que consideren necesaria
+        y para concertar una entrevista en la fecha que mejor les convenga.`
+      : `Quedo a su disposición para ampliar cualquier información que consideren necesaria
+        y para concertar una entrevista en la fecha que mejor les convenga.`;
+
+    const closingText = isCouple
+      ? 'Agradecemos de antemano su atención y quedamos a la espera de sus noticias.'
+      : 'Agradezco de antemano su atención y quedo a la espera de sus noticias.';
 
     return `
 <!DOCTYPE html>
@@ -471,22 +526,13 @@ export class WorkerService {
     <div class="content">
       <p>Estimado/a responsable de ${company},</p>
 
-      <p>
-        Mi nombre es <span class="highlight">${clientName}</span> y me dirijo a ustedes con gran interés
-        en la posición de <span class="highlight">${position}</span>${location ? ` en ${location}` : ''}.
-      </p>
+      <p>${introText}</p>
 
-      <p>
-        Cuento con experiencia en el sector ${client.industria || 'hotelero'} y estoy entusiasmado/a por
-        la oportunidad de formar parte de su equipo. Adjunto mi CV para su consideración.
-      </p>
+      <p>${experienceText}</p>
 
-      <p>
-        Quedo a su disposición para ampliar cualquier información que consideren necesaria
-        y para concertar una entrevista en la fecha que mejor les convenga.
-      </p>
+      <p>${availabilityText}</p>
 
-      <p>Agradezco de antemano su atención y quedo a la espera de sus noticias.</p>
+      <p>${closingText}</p>
 
       <p>
         Atentamente,<br>

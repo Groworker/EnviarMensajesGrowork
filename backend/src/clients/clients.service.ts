@@ -44,7 +44,7 @@ export class ClientsService {
 
   async findAll(): Promise<Client[]> {
     return this.clientRepository.find({
-      relations: ['sendSettings'],
+      relations: ['sendSettings', 'pareja'],
       order: { id: 'ASC' },
     });
   }
@@ -58,6 +58,47 @@ export class ClientsService {
       throw new NotFoundException(`Client with ID ${id} not found`);
     }
     return client;
+  }
+
+  async getParejaInfoByZohoId(zohoId: string): Promise<{
+    esPareja: boolean;
+    parejaEmailOperativo: string | null;
+    emailAlias: string | null;
+  }> {
+    const client = await this.clientRepository.findOne({
+      where: { zohoId },
+    });
+
+    if (!client || !client.parejaId) {
+      return { esPareja: false, parejaEmailOperativo: null, emailAlias: null };
+    }
+
+    const pareja = await this.clientRepository.findOne({
+      where: { id: client.parejaId },
+    });
+
+    if (!pareja) {
+      return { esPareja: false, parejaEmailOperativo: null, emailAlias: null };
+    }
+
+    // Generate couple alias (same logic as n8n.service.ts)
+    const normalize = (name: string): string =>
+      (name || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z]/g, '')
+        .substring(0, 4);
+
+    const primaryName = client.id < pareja.id ? client.nombre : pareja.nombre;
+    const secondaryName = client.id < pareja.id ? pareja.nombre : client.nombre;
+    const emailAlias = `${normalize(primaryName)}${normalize(secondaryName)}`;
+
+    return {
+      esPareja: true,
+      parejaEmailOperativo: pareja.emailOperativo || null,
+      emailAlias,
+    };
   }
 
   async create(createClientDto: CreateClientDto): Promise<Client> {
@@ -229,6 +270,11 @@ export class ClientsService {
         );
       }
 
+      // 3. Sync partner estado if this client has a pareja
+      if (client.parejaId) {
+        await this.syncParejaEstado(client, nuevoEstado, client.motivoCierre);
+      }
+
       return updatedClient;
     } catch (error: any) {
       this.logger.error(
@@ -367,5 +413,48 @@ export class ClientsService {
     );
 
     return { updated: updatedCount };
+  }
+
+  /**
+   * Synchronize estado changes to the partner.
+   * If one partner pauses/closes, the other must follow.
+   * If one reactivates, the other also reactivates.
+   */
+  private async syncParejaEstado(
+    client: Client,
+    nuevoEstado: string,
+    motivoCierre?: string | null,
+  ): Promise<void> {
+    if (!client.parejaId) return;
+
+    const pareja = await this.clientRepository.findOne({
+      where: { id: client.parejaId },
+    });
+
+    if (!pareja || pareja.estado === nuevoEstado) return;
+
+    this.logger.log(
+      `Syncing pareja estado: Client ${client.id} -> "${nuevoEstado}", syncing partner ${pareja.id} from "${pareja.estado}"`,
+    );
+
+    pareja.estado = nuevoEstado;
+    pareja.motivoCierre = nuevoEstado === 'Closed' ? (motivoCierre ?? null) : null;
+    await this.clientRepository.save(pareja);
+
+    // Sync partner to Zoho too
+    try {
+      await this.zohoService.updateClientEstado(
+        pareja.zohoId,
+        nuevoEstado,
+        pareja.motivoCierre,
+      );
+      this.logger.log(
+        `Successfully synced partner ${pareja.id} estado to Zoho CRM`,
+      );
+    } catch (zohoError: any) {
+      this.logger.warn(
+        `Failed to sync partner ${pareja.id} estado to Zoho: ${zohoError.message}`,
+      );
+    }
   }
 }

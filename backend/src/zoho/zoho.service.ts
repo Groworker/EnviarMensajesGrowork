@@ -32,6 +32,7 @@ export interface ZohoContact {
   id_CARPETA_DEFINITIVA: string | null;
   id_CARPETA_NEW: string | null;
   id_CARPETA_OLD: string | null;
+  Pareja: { id: string; name: string } | null;
 }
 
 /**
@@ -288,6 +289,7 @@ export class ZohoService {
     'id_CARPETA_DEFINITIVA',
     'id_CARPETA_NEW',
     'id_CARPETA_OLD',
+    'Pareja',
   ].join(',');
 
   /**

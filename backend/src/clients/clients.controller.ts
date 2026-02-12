@@ -66,6 +66,17 @@ export class ClientsController {
     return this.driveService.getAllFilesFromFolder(client.idCarpetaNew);
   }
 
+  /**
+   * Get couple (pareja) info for a client by Zoho ID.
+   * Used by n8n WKF-1.4 to check if email creation should be skipped.
+   */
+  @Get('by-zoho/:zohoId/pareja-info')
+  async getParejaInfo(
+    @Param('zohoId') zohoId: string,
+  ): Promise<{ esPareja: boolean; parejaEmailOperativo: string | null; emailAlias: string | null }> {
+    return this.clientsService.getParejaInfoByZohoId(zohoId);
+  }
+
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number): Promise<Client> {
     const client = await this.clientsService.findOne(id);

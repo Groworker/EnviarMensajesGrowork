@@ -55,6 +55,28 @@ export class N8nService {
       // Fetch client details from database to include in payload
       const client = await this.clientRepository.findOne({ where: { id: clientId } });
 
+      // Check if client has a pareja and include couple info in payload
+      let parejaPayload: Record<string, any> = {};
+      if (client?.parejaId) {
+        const pareja = await this.clientRepository.findOne({
+          where: { id: client.parejaId },
+        });
+        if (pareja) {
+          parejaPayload = {
+            esPareja: true,
+            parejaInfo: {
+              nombre: pareja.nombre,
+              apellido: pareja.apellido,
+              emailOperativo: pareja.emailOperativo || null,
+            },
+            emailAlias: generateCoupleAlias(
+              client.id < pareja.id ? client.nombre : pareja.nombre,
+              client.id < pareja.id ? pareja.nombre : client.nombre,
+            ),
+          };
+        }
+      }
+
       const payload = {
         clientId,
         zohoId: client?.zohoId || undefined,
@@ -64,6 +86,7 @@ export class N8nService {
         mailCorporativo: client?.emailOperativo || '',
         workflowType,
         timestamp: new Date().toISOString(),
+        ...parejaPayload,
         ...additionalData,
       };
 
@@ -114,4 +137,20 @@ export class N8nService {
       .filter(([_, url]) => !!url)
       .map(([type, _]) => type as WorkflowType);
   }
+}
+
+/**
+ * Generate a combined email alias for a couple.
+ * Takes first 4 chars of each name, lowercased, without accents.
+ * Example: "Luis" + "Patricia" -> "luispatr"
+ */
+export function generateCoupleAlias(name1: string, name2: string): string {
+  const normalize = (name: string): string =>
+    (name || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z]/g, '')
+      .substring(0, 4);
+  return `${normalize(name1)}${normalize(name2)}`;
 }

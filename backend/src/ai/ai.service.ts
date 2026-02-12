@@ -58,10 +58,11 @@ export class AiService {
   async generateEmailContent(
     client: Client,
     offer: JobOffer,
+    pareja?: Client | null,
   ): Promise<{ subject: string; htmlContent: string; model: string }> {
     if (!this.openai) {
       this.logger.warn('AI not available, using fallback template');
-      return this.generateFallbackContent(client, offer);
+      return this.generateFallbackContent(client, offer, pareja);
     }
 
     const context: EmailGeneratorContext = {
@@ -69,6 +70,9 @@ export class AiService {
       clientLastName: client.apellido || '',
       clientJobTitle: client.jobTitle || '',
       clientIndustry: client.industria || 'hotelero',
+      isCouple: !!pareja,
+      partnerName: pareja?.nombre || undefined,
+      partnerLastName: pareja?.apellido || undefined,
       offerPosition: offer.puesto || 'el puesto disponible',
       offerCompany: offer.empresa || offer.hotel || '',
       offerCity: offer.ciudad || '',
@@ -79,7 +83,7 @@ export class AiService {
     try {
       const userPrompt = buildEmailGeneratorPrompt(context);
 
-      this.logger.debug(`Generating email for client ${client.id} to ${offer.email}`);
+      this.logger.debug(`Generating email for client ${client.id}${pareja ? ` (couple with ${pareja.id})` : ''} to ${offer.email}`);
 
       const completion = await this.openai.chat.completions.create({
         model: this.model,
@@ -99,7 +103,7 @@ export class AiService {
       }
 
       const generated = this.parseAiResponse(responseText);
-      const htmlContent = this.convertToHtml(generated.body, client);
+      const htmlContent = this.convertToHtml(generated.body, client, pareja);
 
       this.logger.log(
         `Email generated successfully for client ${client.id}. ` +
@@ -116,7 +120,7 @@ export class AiService {
         `Failed to generate email with AI: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
       // Fall back to template-based generation
-      return this.generateFallbackContent(client, offer);
+      return this.generateFallbackContent(client, offer, pareja);
     }
   }
 
@@ -144,8 +148,10 @@ export class AiService {
   /**
    * Convert plain text body to styled HTML email
    */
-  private convertToHtml(body: string, client: Client): string {
-    const clientName = `${client.nombre || ''} ${client.apellido || ''}`.trim();
+  private convertToHtml(body: string, client: Client, pareja?: Client | null): string {
+    const clientName = pareja
+      ? `${client.nombre || ''} ${client.apellido || ''} & ${pareja.nombre || ''} ${pareja.apellido || ''}`.trim()
+      : `${client.nombre || ''} ${client.apellido || ''}`.trim();
     const clientEmail = client.emailOperativo || client.email || '';
     const clientPhone = client.phone || '';
 
@@ -208,22 +214,34 @@ export class AiService {
   private generateFallbackContent(
     client: Client,
     offer: JobOffer,
+    pareja?: Client | null,
   ): { subject: string; htmlContent: string; model: string } {
-    const clientName = `${client.nombre || ''} ${client.apellido || ''}`.trim();
     const position = offer.puesto || 'el puesto disponible';
     const company = offer.empresa || offer.hotel || 'su empresa';
     const location = `${offer.ciudad || ''}${offer.pais ? `, ${offer.pais}` : ''}`;
     const industry = client.industria || 'hotelero';
 
-    const subject = `Candidatura para ${position} - ${clientName}`;
+    let clientName: string;
+    let body: string;
 
-    const body = `Me dirijo a ustedes para expresar mi interés en la posición de ${position} en ${company}${location ? ` ubicada en ${location}` : ''}.
+    if (pareja) {
+      clientName = `${client.nombre || ''} y ${pareja.nombre || ''}`.trim();
+      body = `Nos dirigimos a ustedes para expresar nuestro interés en la posición de ${position} en ${company}${location ? ` ubicada en ${location}` : ''}.
+
+Contamos con experiencia en el sector ${industry} y nos gustaría tener la oportunidad de formar parte de su equipo. Adjuntamos nuestros currículums para su consideración.
+
+Quedamos a su disposición para ampliar cualquier información y participar en el proceso de selección cuando lo consideren oportuno.`;
+    } else {
+      clientName = `${client.nombre || ''} ${client.apellido || ''}`.trim();
+      body = `Me dirijo a ustedes para expresar mi interés en la posición de ${position} en ${company}${location ? ` ubicada en ${location}` : ''}.
 
 Cuento con experiencia en el sector ${industry} y me gustaría tener la oportunidad de formar parte de su equipo. Adjunto mi currículum para su consideración.
 
 Quedo a su disposición para ampliar cualquier información y participar en el proceso de selección cuando lo consideren oportuno.`;
+    }
 
-    const htmlContent = this.convertToHtml(body, client);
+    const subject = `Candidatura para ${position} - ${clientName}`;
+    const htmlContent = this.convertToHtml(body, client, pareja);
 
     return {
       subject,

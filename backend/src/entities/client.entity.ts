@@ -115,6 +115,17 @@ export class Client {
   @Column({ name: 'deletion_reason', type: 'text', nullable: true })
   deletionReason: string | null;
 
+  // Pareja (couple) relationship - self-referencing FK
+  @Column({ name: 'pareja_id', nullable: true })
+  parejaId: number | null;
+
+  @ManyToOne(() => Client, { nullable: true })
+  @JoinColumn({ name: 'pareja_id' })
+  pareja: Client | null;
+
+  @Column({ name: 'is_primary_partner', nullable: true, default: null })
+  isPrimaryPartner: boolean | null;
+
   // Auto-deletion tracking fields
   @Column({ name: 'estado_changed_at', type: 'timestamp', nullable: true })
   estadoChangedAt: Date;

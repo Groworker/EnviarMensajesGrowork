@@ -94,6 +94,9 @@ export class ZohoSyncService {
           else totalSkipped++;
         }
 
+        // Resolve pareja relationships after processing each page
+        await this.resolveParejaRelationships(response.data);
+
         hasMore = response.info?.more_records || false;
         page++;
 
@@ -177,6 +180,9 @@ export class ZohoSyncService {
           else if (result === 'updated') totalUpdated++;
           else totalSkipped++;
         }
+
+        // Resolve pareja relationships after processing each page
+        await this.resolveParejaRelationships(response.data);
 
         hasMore = response.info?.more_records || false;
         page++;
@@ -419,5 +425,103 @@ export class ZohoSyncService {
    */
   isSyncInProgress(): boolean {
     return this.isSyncing;
+  }
+
+  /**
+   * Resolve pareja (couple) relationships after syncing a batch of contacts.
+   * Zoho Lookup fields return { id, name } objects.
+   * Sets bidirectional parejaId and isPrimaryPartner on both partners.
+   * Also clears broken links when Pareja field is removed in Zoho.
+   */
+  private async resolveParejaRelationships(
+    zohoContacts: ZohoContact[],
+  ): Promise<void> {
+    for (const zohoContact of zohoContacts) {
+      try {
+        const client = await this.clientRepository.findOne({
+          where: { zohoId: zohoContact.id },
+        });
+        if (!client) continue;
+
+        if (zohoContact.Pareja) {
+          // Contact has a Pareja lookup set in Zoho
+          const parejaZohoId = zohoContact.Pareja.id;
+
+          const pareja = await this.clientRepository.findOne({
+            where: { zohoId: parejaZohoId },
+          });
+
+          if (!pareja) {
+            this.logger.warn(
+              `Cannot resolve pareja for client ${client.id}: partner Zoho ID ${parejaZohoId} not found locally`,
+            );
+            continue;
+          }
+
+          // Skip if already correctly linked
+          if (client.parejaId === pareja.id && pareja.parejaId === client.id) {
+            continue;
+          }
+
+          // Set bidirectional relationship
+          client.parejaId = pareja.id;
+          client.isPrimaryPartner = client.id < pareja.id;
+
+          pareja.parejaId = client.id;
+          pareja.isPrimaryPartner = pareja.id < client.id;
+
+          await this.clientRepository.save(client);
+          await this.clientRepository.save(pareja);
+
+          this.logger.log(
+            `Linked pareja: ${client.id} (${client.nombre}) <-> ${pareja.id} (${pareja.nombre}). Primary: ${client.isPrimaryPartner ? client.id : pareja.id}`,
+          );
+
+          // Propagate emailOperativo if one partner already has it
+          if (client.emailOperativo && !pareja.emailOperativo) {
+            pareja.emailOperativo = client.emailOperativo;
+            pareja.emailOperativoPw = client.emailOperativoPw;
+            pareja.fechaCreacionEmailOperativo = client.fechaCreacionEmailOperativo;
+            await this.clientRepository.save(pareja);
+            this.logger.log(
+              `Propagated emailOperativo ${client.emailOperativo} to partner ${pareja.id}`,
+            );
+          } else if (pareja.emailOperativo && !client.emailOperativo) {
+            client.emailOperativo = pareja.emailOperativo;
+            client.emailOperativoPw = pareja.emailOperativoPw;
+            client.fechaCreacionEmailOperativo = pareja.fechaCreacionEmailOperativo;
+            await this.clientRepository.save(client);
+            this.logger.log(
+              `Propagated emailOperativo ${pareja.emailOperativo} to partner ${client.id}`,
+            );
+          }
+        } else {
+          // Pareja field is null in Zoho - clear local link if it existed
+          if (!client.parejaId) continue;
+
+          const formerPareja = await this.clientRepository.findOne({
+            where: { id: client.parejaId },
+          });
+
+          client.parejaId = null;
+          client.isPrimaryPartner = null;
+          await this.clientRepository.save(client);
+
+          if (formerPareja && formerPareja.parejaId === client.id) {
+            formerPareja.parejaId = null;
+            formerPareja.isPrimaryPartner = null;
+            await this.clientRepository.save(formerPareja);
+          }
+
+          this.logger.log(
+            `Cleared pareja link for client ${client.id} (Zoho Pareja field removed)`,
+          );
+        }
+      } catch (error: any) {
+        this.logger.error(
+          `Failed to resolve pareja for Zoho contact ${zohoContact.id}: ${error.message}`,
+        );
+      }
+    }
   }
 }

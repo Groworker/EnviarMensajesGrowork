@@ -216,6 +216,15 @@ export class N8nController {
                 });
 
                 this.logger.log(`Updated workflow state for client ${clientId}: ${workflowType} -> ${status}`);
+
+                // WKF-1.4 couple logic: share email with partner
+                if (
+                    workflowType === WorkflowType.WKF_1_4 &&
+                    payload.event === 'email_corporativo_creado' &&
+                    payload.status === 'success'
+                ) {
+                    await this.handleCoupleEmailCreation(clientId);
+                }
             } else {
                 this.logger.warn(
                     `Could not update workflow state: clientId=${clientId}, workflowType=${workflowType}`,
@@ -230,6 +239,65 @@ export class N8nController {
         } catch (error) {
             this.logger.error(`Error processing n8n webhook: ${error.message}`);
             throw error;
+        }
+    }
+
+    /**
+     * Handle couple email creation for WKF-1.4.
+     * When one partner gets an email, propagate it to the other partner.
+     * Uses atomic UPDATE to handle race conditions.
+     */
+    private async handleCoupleEmailCreation(clientId: number): Promise<void> {
+        try {
+            const client = await this.clientsRepository.findOne({
+                where: { id: clientId },
+            });
+            if (!client || !client.parejaId) return;
+
+            const pareja = await this.clientsRepository.findOne({
+                where: { id: client.parejaId },
+            });
+            if (!pareja) return;
+
+            // Case 1: Partner already has email -> copy to this client
+            if (pareja.emailOperativo && !client.emailOperativo) {
+                client.emailOperativo = pareja.emailOperativo;
+                client.emailOperativoPw = pareja.emailOperativoPw;
+                client.fechaCreacionEmailOperativo = pareja.fechaCreacionEmailOperativo;
+                await this.clientsRepository.save(client);
+                this.logger.log(
+                    `Couple email: Assigned existing email ${pareja.emailOperativo} to partner ${client.id}`,
+                );
+                return;
+            }
+
+            // Case 2: This client just got an email -> propagate to partner (atomic)
+            if (client.emailOperativo && !pareja.emailOperativo) {
+                const result = await this.clientsRepository
+                    .createQueryBuilder()
+                    .update(Client)
+                    .set({
+                        emailOperativo: client.emailOperativo,
+                        emailOperativoPw: client.emailOperativoPw,
+                        fechaCreacionEmailOperativo: client.fechaCreacionEmailOperativo,
+                    })
+                    .where('id = :id AND email_operativo IS NULL', { id: pareja.id })
+                    .execute();
+
+                if (result.affected && result.affected > 0) {
+                    this.logger.log(
+                        `Couple email: Propagated ${client.emailOperativo} to partner ${pareja.id}`,
+                    );
+                } else {
+                    this.logger.log(
+                        `Couple email: Partner ${pareja.id} already has email (concurrent WKF-1.4)`,
+                    );
+                }
+            }
+        } catch (error: any) {
+            this.logger.error(
+                `Failed to handle couple email creation for client ${clientId}: ${error.message}`,
+            );
         }
     }
 

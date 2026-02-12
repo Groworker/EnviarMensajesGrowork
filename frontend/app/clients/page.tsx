@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
-import { Search, Settings, Save, X, Info, AlertCircle, MapPin, Briefcase, Filter, BarChart3, Mail, CheckCircle, XCircle, Clock, AlertTriangle, MessageSquare, RefreshCw, RotateCcw, Inbox, Trash2 } from 'lucide-react';
+import { Search, Settings, Save, X, Info, AlertCircle, MapPin, Briefcase, Filter, BarChart3, Mail, CheckCircle, XCircle, Clock, AlertTriangle, MessageSquare, RefreshCw, RotateCcw, Inbox, Trash2, Link2 } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ClassificationBadge } from '@/components/ClassificationBadge';
@@ -1626,6 +1626,20 @@ export default function ClientsPage() {
                                             <div className="font-medium text-gray-900">{client.nombre} {client.apellido}</div>
                                             <div className="text-sm text-gray-500">{client.email}</div>
                                             <div className="text-xs text-gray-400 font-mono">{client.zohoId}</div>
+                                            {client.parejaId && client.pareja && (
+                                                <div className="flex items-center gap-1 mt-1">
+                                                    <Link2 size={12} className="text-pink-500" />
+                                                    <span className="text-xs text-pink-600">
+                                                        {client.pareja.nombre} {client.pareja.apellido}
+                                                    </span>
+                                                    {client.isPrimaryPartner && (
+                                                        <span className="text-[10px] bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded-full font-medium ml-1">Primario</span>
+                                                    )}
+                                                    {client.isPrimaryPartner === false && (
+                                                        <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full font-medium ml-1">Secundario</span>
+                                                    )}
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4">
                                             <select

@@ -35,12 +35,41 @@ export class SchedulerService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    // Track processed couples to avoid duplicate jobs
+    const processedCouples = new Set<number>();
+
     for (const client of activeClients) {
       if (!client.sendSettings || !client.sendSettings.active) {
         this.logger.warn(
           `Client ${client.id} (${client.zohoId}) has no active send settings. Skipping.`,
         );
         continue;
+      }
+
+      // Couple deduplication: only the primary partner gets a job
+      if (client.parejaId) {
+        if (client.isPrimaryPartner === false) {
+          this.logger.log(
+            `Client ${client.id} is secondary partner (primary: ${client.parejaId}). Skipping.`,
+          );
+          continue;
+        }
+
+        // Avoid processing the same couple twice
+        const coupleKey = Math.min(client.id, client.parejaId);
+        if (processedCouples.has(coupleKey)) {
+          continue;
+        }
+        processedCouples.add(coupleKey);
+
+        // Verify partner is also active (both must be "In Progress")
+        const pareja = activeClients.find(c => c.id === client.parejaId);
+        if (!pareja || pareja.estado !== 'In Progress') {
+          this.logger.warn(
+            `Partner ${client.parejaId} of client ${client.id} is not active. Skipping couple.`,
+          );
+          continue;
+        }
       }
 
       // Check if job already exists for today

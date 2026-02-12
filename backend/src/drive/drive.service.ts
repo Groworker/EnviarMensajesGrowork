@@ -274,4 +274,23 @@ export class DriveService {
       return [];
     }
   }
+
+  /**
+   * Gets PDF attachments from BOTH partners' DEFINITIVA folders.
+   * Combines files from both folders into a single attachment list.
+   */
+  async getAttachmentsForCouple(
+    primary: Client,
+    secondary: Client,
+  ): Promise<EmailAttachment[]> {
+    const primaryAttachments = await this.getAttachmentsForClient(primary);
+    const secondaryAttachments = await this.getAttachmentsForClient(secondary);
+
+    this.logger.log(
+      `Couple attachments: ${primaryAttachments.length} from ${primary.nombre}, ` +
+      `${secondaryAttachments.length} from ${secondary.nombre}. Total: ${primaryAttachments.length + secondaryAttachments.length}`,
+    );
+
+    return [...primaryAttachments, ...secondaryAttachments];
+  }
 }
