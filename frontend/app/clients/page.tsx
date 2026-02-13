@@ -114,7 +114,7 @@ export default function ClientsPage() {
     const fetchEmailStats = async (clientId: number) => {
         setLoadingStats(true);
         try {
-            const res = await api.get(`/clients/${clientId}/email-stats`);
+            const res = await api.get(`/clients/${clientId}/couple-email-stats`);
             setEmailStats(res.data);
         } catch (error) {
             console.error('Error fetching email stats:', error);
@@ -127,7 +127,11 @@ export default function ClientsPage() {
     const fetchClientResponses = async (clientId: number) => {
         setLoadingResponses(true);
         try {
-            const res = await api.get(`/email-responses/client/${clientId}`);
+            const client = clients.find(c => c.id === clientId);
+            const endpoint = client?.parejaId
+                ? `/email-responses/couple/${clientId}`
+                : `/email-responses/client/${clientId}`;
+            const res = await api.get(endpoint);
             setClientResponses(res.data);
         } catch (error) {
             console.error('Error fetching client responses:', error);
@@ -231,10 +235,16 @@ export default function ClientsPage() {
             await api.patch(`/clients/${editingClient.id}/settings`, settingsToUpdate);
 
             // Cerrar toast de carga y mostrar éxito
-            toast.success('Configuración guardada correctamente', {
-                id: loadingToast,
-                duration: 3000,
-            });
+            const isCouple = editingClient.parejaId;
+            toast.success(
+                isCouple
+                    ? 'Configuración guardada correctamente para la pareja'
+                    : 'Configuración guardada correctamente',
+                {
+                    id: loadingToast,
+                    duration: 3000,
+                }
+            );
 
             setEditingClient(null);
             fetchClients(); // Refresh list
@@ -356,13 +366,21 @@ export default function ClientsPage() {
 
     const handleToggleEnvio = async (clientId: number, currentActive: boolean) => {
         const newActive = !currentActive;
-        const loadingToast = toast.loading(newActive ? 'Activando envíos...' : 'Desactivando envíos...');
+        const client = clients.find(c => c.id === clientId);
+        const isCouple = client?.parejaId;
+        const loadingToast = toast.loading(
+            newActive
+                ? `Activando envíos${isCouple ? ' (pareja)' : ''}...`
+                : `Desactivando envíos${isCouple ? ' (pareja)' : ''}...`
+        );
 
         try {
             await api.patch(`/clients/${clientId}/settings`, { active: newActive });
 
             toast.success(
-                newActive ? 'Envíos activados correctamente' : 'Envíos desactivados correctamente',
+                newActive
+                    ? `Envíos activados correctamente${isCouple ? ' para la pareja' : ''}`
+                    : `Envíos desactivados correctamente${isCouple ? ' para la pareja' : ''}`,
                 {
                     id: loadingToast,
                     duration: 2000,
@@ -617,12 +635,18 @@ export default function ClientsPage() {
         fetchClients();
     };
 
-    const filteredClients = clients.filter(c => {
-        // Text search filter
+    // Pre-filter: hide secondary partners (they appear grouped with their primary)
+    const displayClients = clients.filter(c => c.isPrimaryPartner !== false);
+
+    const filteredClients = displayClients.filter(c => {
+        // Text search filter (includes partner name for couples)
+        const partnerName = c.pareja ? `${c.pareja.nombre || ''} ${c.pareja.apellido || ''}`.toLowerCase() : '';
         const matchesSearch = searchTerm === '' ||
             c.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            c.apellido?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             c.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            c.zohoId?.includes(searchTerm);
+            c.zohoId?.includes(searchTerm) ||
+            partnerName.includes(searchTerm.toLowerCase());
 
         // Estado CRM filter
         const matchesEstadoCrm = estadoCrmFilter === '' || c.estado === estadoCrmFilter;
@@ -740,7 +764,7 @@ export default function ClientsPage() {
 
                     {/* Results count */}
                     <span className="ml-auto text-sm text-gray-500">
-                        {filteredClients.length} de {clients.length} clientes
+                        {filteredClients.length} de {displayClients.length} clientes
                     </span>
                 </div>
             </div>
@@ -803,9 +827,18 @@ export default function ClientsPage() {
                         <div className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-xl">
                             <div className="flex justify-between items-center">
                                 <div>
-                                    <p className="text-blue-100 text-sm font-medium">Configuración de cliente</p>
-                                    <h2 className="text-2xl font-bold text-white">{editingClient.nombre} {editingClient.apellido}</h2>
-                                    <p className="text-blue-200 text-sm mt-1">{editingClient.email}</p>
+                                    <p className="text-blue-100 text-sm font-medium">
+                                        {editingClient.parejaId && editingClient.pareja ? 'Configuración de pareja' : 'Configuración de cliente'}
+                                    </p>
+                                    <h2 className="text-2xl font-bold text-white">
+                                        {editingClient.nombre} {editingClient.apellido}
+                                        {editingClient.parejaId && editingClient.pareja && (
+                                            <span> & {editingClient.pareja.nombre} {editingClient.pareja.apellido}</span>
+                                        )}
+                                    </h2>
+                                    <p className="text-blue-200 text-sm mt-1">
+                                        {editingClient.emailOperativo || editingClient.email}
+                                    </p>
                                 </div>
                                 <button
                                     onClick={() => setEditingClient(null)}
@@ -1623,21 +1656,25 @@ export default function ClientsPage() {
                                             </button>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="font-medium text-gray-900">{client.nombre} {client.apellido}</div>
-                                            <div className="text-sm text-gray-500">{client.email}</div>
-                                            <div className="text-xs text-gray-400 font-mono">{client.zohoId}</div>
+                                            <div className="font-medium text-gray-900">
+                                                {client.nombre} {client.apellido}
+                                                {client.parejaId && client.pareja && (
+                                                    <span className="text-pink-600"> & {client.pareja.nombre} {client.pareja.apellido}</span>
+                                                )}
+                                            </div>
+                                            <div className="text-sm text-gray-500">
+                                                {client.emailOperativo || client.email || '-'}
+                                            </div>
+                                            <div className="text-xs text-gray-400 font-mono">
+                                                {client.zohoId}
+                                                {client.parejaId && client.pareja && (
+                                                    <span> | {client.pareja.zohoId}</span>
+                                                )}
+                                            </div>
                                             {client.parejaId && client.pareja && (
                                                 <div className="flex items-center gap-1 mt-1">
                                                     <Link2 size={12} className="text-pink-500" />
-                                                    <span className="text-xs text-pink-600">
-                                                        {client.pareja.nombre} {client.pareja.apellido}
-                                                    </span>
-                                                    {client.isPrimaryPartner && (
-                                                        <span className="text-[10px] bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded-full font-medium ml-1">Primario</span>
-                                                    )}
-                                                    {client.isPrimaryPartner === false && (
-                                                        <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full font-medium ml-1">Secundario</span>
-                                                    )}
+                                                    <span className="text-[10px] bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded-full font-medium">Pareja</span>
                                                 </div>
                                             )}
                                         </td>

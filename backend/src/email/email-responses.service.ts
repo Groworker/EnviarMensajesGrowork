@@ -11,6 +11,7 @@ import {
   ResponseClassification,
 } from '../entities/email-response.entity';
 import { EmailSend } from '../entities/email-send.entity';
+import { Client } from '../entities/client.entity';
 import { ResponseSyncService } from './response-sync.service';
 import { AiService } from '../ai/ai.service';
 import { EmailService } from './email.service';
@@ -39,6 +40,8 @@ export class EmailResponsesService {
     private responseRepository: Repository<EmailResponse>,
     @InjectRepository(EmailSend)
     private emailSendRepository: Repository<EmailSend>,
+    @InjectRepository(Client)
+    private clientRepository: Repository<Client>,
     private responseSyncService: ResponseSyncService,
     private aiService: AiService,
     private emailService: EmailService,
@@ -88,6 +91,28 @@ export class EmailResponsesService {
    */
   async findByClient(clientId: number): Promise<EmailResponse[]> {
     return this.findAll({ clientId });
+  }
+
+  /**
+   * Get responses for a client and their partner (if any)
+   */
+  async findByCouple(clientId: number): Promise<EmailResponse[]> {
+    const client = await this.clientRepository.findOne({ where: { id: clientId } });
+    if (!client) return [];
+
+    const clientIds = [clientId];
+    if (client.parejaId) {
+      clientIds.push(client.parejaId);
+    }
+
+    return this.responseRepository
+      .createQueryBuilder('response')
+      .leftJoinAndSelect('response.emailSend', 'emailSend')
+      .leftJoinAndSelect('emailSend.client', 'client')
+      .leftJoinAndSelect('emailSend.jobOffer', 'jobOffer')
+      .where('emailSend.clientId IN (:...clientIds)', { clientIds })
+      .orderBy('response.receivedAt', 'DESC')
+      .getMany();
   }
 
   /**

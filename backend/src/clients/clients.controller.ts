@@ -49,6 +49,16 @@ export class ClientsController {
   }
 
   /**
+   * Get combined email statistics for a client and their partner (if any)
+   */
+  @Get(':id/couple-email-stats')
+  async getCoupleEmailStats(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<ClientEmailStats> {
+    return this.clientsService.getCoupleEmailStats(id);
+  }
+
+  /**
    * Get files from a client's NEW folder in Google Drive
    */
   @Get(':id/new-folder-files')

@@ -115,6 +115,15 @@ export class SchedulerService {
       this.logger.log(
         `Warmup: Increased limit for Client ${client.id} from ${settings.currentDailyLimit - increment} to ${newLimit} (+${increment})`,
       );
+
+      // Sync warmup increment to partner
+      if (client.parejaId) {
+        await this.settingsRepository.update(
+          { clientId: client.parejaId },
+          { currentDailyLimit: newLimit },
+        );
+        this.logger.log(`Warmup: Synced limit ${newLimit} to partner ${client.parejaId}`);
+      }
     }
 
     // Create Job

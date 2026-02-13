@@ -70,6 +70,14 @@ export class EmailResponsesController {
   }
 
   /**
+   * Get responses for a client and their partner (couple)
+   */
+  @Get('couple/:clientId')
+  async findByCouple(@Param('clientId', ParseIntPipe) clientId: number) {
+    return this.responsesService.findByCouple(clientId);
+  }
+
+  /**
    * Get a single response by ID
    */
   @Get(':id')

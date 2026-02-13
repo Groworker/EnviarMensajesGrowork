@@ -145,7 +145,14 @@ export class ClientsService {
     id: number,
     settingsDto: UpdateSettingsDto,
   ): Promise<ClientSendSettings> {
-    const client = await this.findOne(id);
+    const client = await this.clientRepository.findOne({
+      where: { id },
+      relations: ['sendSettings'],
+    });
+    if (!client) {
+      throw new NotFoundException(`Client with ID ${id} not found`);
+    }
+
     let settings = client.sendSettings;
 
     if (!settings) {
@@ -177,7 +184,14 @@ export class ClientsService {
     }
 
     Object.assign(settings, settingsDto);
-    return this.settingsRepository.save(settings);
+    const savedSettings = await this.settingsRepository.save(settings);
+
+    // Sync settings to partner if this client has a pareja
+    if (client.parejaId) {
+      await this.syncParejaSettings(client.parejaId, settingsDto);
+    }
+
+    return savedSettings;
   }
 
   /**
@@ -413,6 +427,102 @@ export class ClientsService {
     );
 
     return { updated: updatedCount };
+  }
+
+  /**
+   * Get combined email statistics for a client and their partner (if any).
+   */
+  async getCoupleEmailStats(clientId: number): Promise<ClientEmailStats> {
+    const client = await this.clientRepository.findOne({
+      where: { id: clientId },
+    });
+    if (!client) {
+      throw new NotFoundException(`Client with ID ${clientId} not found`);
+    }
+
+    const clientIds = [clientId];
+    if (client.parejaId) {
+      clientIds.push(client.parejaId);
+    }
+
+    const statusCounts = await this.emailSendRepository
+      .createQueryBuilder('email')
+      .select('email.status', 'status')
+      .addSelect('COUNT(*)', 'count')
+      .where('email.clientId IN (:...clientIds)', { clientIds })
+      .groupBy('email.status')
+      .getRawMany();
+
+    const lastEmail = await this.emailSendRepository
+      .createQueryBuilder('email')
+      .select('MAX(email.sentAt)', 'lastAt')
+      .where('email.clientId IN (:...clientIds)', { clientIds })
+      .getRawOne();
+
+    const counts: Record<string, number> = {};
+    statusCounts.forEach((row) => {
+      counts[row.status] = parseInt(row.count, 10);
+    });
+
+    const sent = counts[EmailSendStatus.SENT] || 0;
+    const failed = counts[EmailSendStatus.FAILED] || 0;
+    const bounced = counts[EmailSendStatus.BOUNCED] || 0;
+    const pendingReview = counts[EmailSendStatus.PENDING_REVIEW] || 0;
+    const rejected = counts[EmailSendStatus.REJECTED] || 0;
+    const reserved = counts[EmailSendStatus.RESERVED] || 0;
+    const approved = counts[EmailSendStatus.APPROVED] || 0;
+
+    const totalEmails = sent + failed + bounced + pendingReview + rejected + reserved + approved;
+    const completedEmails = sent + failed + bounced + rejected;
+    const successRate = completedEmails > 0 ? Math.round((sent / completedEmails) * 100) : 0;
+
+    let clientName = `${client.nombre || ''} ${client.apellido || ''}`.trim();
+    if (client.parejaId) {
+      const pareja = await this.clientRepository.findOne({ where: { id: client.parejaId } });
+      if (pareja) {
+        clientName += ` & ${pareja.nombre || ''} ${pareja.apellido || ''}`.trim();
+      }
+    }
+
+    return {
+      clientId,
+      clientName,
+      totalEmails,
+      sent,
+      failed,
+      bounced,
+      pendingReview,
+      rejected,
+      reserved,
+      successRate,
+      lastEmailAt: lastEmail?.lastAt || null,
+    };
+  }
+
+  /**
+   * Sync send settings to the partner when one partner's settings are updated.
+   */
+  private async syncParejaSettings(
+    parejaId: number,
+    settingsDto: UpdateSettingsDto,
+  ): Promise<void> {
+    const pareja = await this.clientRepository.findOne({
+      where: { id: parejaId },
+      relations: ['sendSettings'],
+    });
+    if (!pareja) return;
+
+    let parejaSettings = pareja.sendSettings;
+    if (!parejaSettings) {
+      parejaSettings = this.settingsRepository.create({
+        clientId: pareja.id,
+      });
+    }
+
+    Object.assign(parejaSettings, settingsDto);
+    await this.settingsRepository.save(parejaSettings);
+
+    this.logger.log(`Synced settings to partner ${parejaId}`);
   }
 
   /**
