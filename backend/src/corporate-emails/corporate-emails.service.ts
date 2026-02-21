@@ -23,6 +23,10 @@ export class CorporateEmailsService {
     ) { }
 
     async getAllCorporateEmails() {
+        // Get managed domains from DB
+        const managedDomains = await this.dominioRepository.find();
+        const domainNames = managedDomains.map(d => d.dominio);
+
         const clients = await this.clientRepository.find({
             where: { emailOperativo: Not(IsNull()) },
             select: [
@@ -39,10 +43,17 @@ export class CorporateEmailsService {
             order: { fechaCreacionEmailOperativo: 'DESC' },
         });
 
-        return clients.map((client) => ({
-            ...client,
-            domain: client.emailOperativo?.split('@')[1] || 'Unknown',
-        }));
+        // Only include emails belonging to managed domains (e.g. personalwork.es)
+        // Exclude personal emails like @gmail.com
+        return clients
+            .filter((client) => {
+                const domain = client.emailOperativo?.split('@')[1];
+                return domain && domainNames.includes(domain);
+            })
+            .map((client) => ({
+                ...client,
+                domain: client.emailOperativo?.split('@')[1] || 'Unknown',
+            }));
     }
 
     async getStats() {
@@ -119,6 +130,93 @@ export class CorporateEmailsService {
             await this.clientRepository.save(client);
             this.logger.log(`Cancelled deletion for email ${email}`);
         }
+    }
+
+    /**
+     * Sync DB with Google Workspace reality.
+     * Lists actual GW users and removes stale emails from the DB.
+     */
+    async syncWithGoogleWorkspace(): Promise<{
+        gwUsers: string[];
+        staleEmails: string[];
+        nonManagedEmails: string[];
+        cleaned: number;
+    }> {
+        // 1. Get all managed domains
+        const managedDomains = await this.dominioRepository.find();
+        const domainNames = managedDomains.map(d => d.dominio);
+
+        // 2. Clean non-managed-domain emails (e.g. @gmail.com) from emailOperativo
+        const allClientsWithEmail = await this.clientRepository.find({
+            where: { emailOperativo: Not(IsNull()) },
+        });
+
+        const nonManagedClients = allClientsWithEmail.filter(client => {
+            const domain = client.emailOperativo?.split('@')[1];
+            return !domain || !domainNames.includes(domain);
+        });
+
+        const nonManagedEmails = nonManagedClients.map(c => c.emailOperativo!);
+        if (nonManagedEmails.length > 0) {
+            this.logger.log(`Found ${nonManagedEmails.length} non-managed domain emails to clean: ${nonManagedEmails.join(', ')}`);
+            for (const client of nonManagedClients) {
+                client.emailOperativo = null as any;
+                client.emailOperativoPw = null as any;
+                client.fechaCreacionEmailOperativo = null as any;
+                client.emailDeletionPendingSince = null;
+                client.emailDeletionReason = null;
+                await this.clientRepository.save(client);
+                this.logger.log(`Cleaned non-managed email for client ${client.id} (${client.nombre} ${client.apellido})`);
+            }
+        }
+
+        // 3. List actual users in Google Workspace for each domain
+        const gwEmails: string[] = [];
+        for (const domain of domainNames) {
+            try {
+                const users = await this.googleWorkspaceService.listUsers(domain);
+                for (const user of users) {
+                    if (user.primaryEmail) {
+                        gwEmails.push(user.primaryEmail.toLowerCase());
+                    }
+                }
+            } catch (error: any) {
+                this.logger.error(`Error listing GW users for domain ${domain}: ${error.message}`);
+            }
+        }
+
+        this.logger.log(`Found ${gwEmails.length} actual users in Google Workspace: ${gwEmails.join(', ')}`);
+
+        // 4. Find DB records with managed-domain emails that don't exist in GW
+        const managedEmailClients = allClientsWithEmail.filter(client => {
+            const domain = client.emailOperativo?.split('@')[1];
+            return domain && domainNames.includes(domain);
+        });
+
+        const staleClients = managedEmailClients.filter(client => {
+            return !gwEmails.includes(client.emailOperativo!.toLowerCase());
+        });
+
+        const staleEmails = staleClients.map(c => c.emailOperativo!);
+        this.logger.log(`Found ${staleEmails.length} stale managed-domain emails in DB: ${staleEmails.join(', ')}`);
+
+        // 5. Clean stale managed-domain emails from DB
+        for (const client of staleClients) {
+            client.emailOperativo = null as any;
+            client.emailOperativoPw = null as any;
+            client.fechaCreacionEmailOperativo = null as any;
+            client.emailDeletionPendingSince = null;
+            client.emailDeletionReason = null;
+            await this.clientRepository.save(client);
+            this.logger.log(`Cleaned stale email for client ${client.id} (${client.nombre} ${client.apellido})`);
+        }
+
+        return {
+            gwUsers: gwEmails,
+            staleEmails,
+            nonManagedEmails,
+            cleaned: staleClients.length + nonManagedClients.length,
+        };
     }
 
     // --- AUTO DELETION LOGIC (CRON) ---

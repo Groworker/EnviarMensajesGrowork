@@ -1,4 +1,4 @@
-import { Controller, Get, Delete, Param, Post } from '@nestjs/common';
+import { Controller, Get, Delete, Param, Post, HttpCode, HttpStatus } from '@nestjs/common';
 import { CorporateEmailsService } from './corporate-emails.service.js';
 
 @Controller('corporate-emails')
@@ -20,6 +20,12 @@ export class CorporateEmailsController {
     @Get('pending-deletion')
     async getPendingDeletion() {
         return this.corporateEmailsService.getPendingDeletion();
+    }
+
+    @Post('sync')
+    @HttpCode(HttpStatus.OK)
+    async syncWithGoogleWorkspace() {
+        return this.corporateEmailsService.syncWithGoogleWorkspace();
     }
 
     @Delete(':email')

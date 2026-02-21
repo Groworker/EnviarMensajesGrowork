@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Client } from '../entities/client.entity';
+import { Dominio } from '../entities/dominio.entity';
 import { ZohoService, ZohoContact } from './zoho.service';
 
 @Injectable()
@@ -16,6 +17,8 @@ export class ZohoSyncService {
   constructor(
     @InjectRepository(Client)
     private readonly clientRepository: Repository<Client>,
+    @InjectRepository(Dominio)
+    private readonly dominioRepository: Repository<Dominio>,
     private readonly zohoService: ZohoService,
     private readonly configService: ConfigService,
   ) {
@@ -23,6 +26,16 @@ export class ZohoSyncService {
       this.configService.get<number>('ZOHO_SYNC_BATCH_SIZE') || 200;
     this.syncEnabled =
       this.configService.get<string>('ZOHO_SYNC_ENABLED') !== 'false';
+  }
+
+  private managedDomainNames: string[] | null = null;
+
+  private async getManagedDomains(): Promise<string[]> {
+    if (!this.managedDomainNames) {
+      const domains = await this.dominioRepository.find();
+      this.managedDomainNames = domains.map(d => d.dominio);
+    }
+    return this.managedDomainNames;
   }
 
   /**
@@ -258,7 +271,7 @@ export class ZohoSyncService {
         }
 
         // Update existing client
-        this.mapZohoToClient(zohoContact, client);
+        await this.mapZohoToClient(zohoContact, client);
         await this.clientRepository.save(client);
         this.logger.debug(`Updated client ${client.id} (Zoho ID: ${zohoId})`);
         return 'updated';
@@ -266,7 +279,7 @@ export class ZohoSyncService {
         // Create new client
         client = this.clientRepository.create();
         client.zohoId = zohoId;
-        this.mapZohoToClient(zohoContact, client);
+        await this.mapZohoToClient(zohoContact, client);
         await this.clientRepository.save(client);
         this.logger.log(`Created new client from Zoho (Zoho ID: ${zohoId})`);
         return 'created';
@@ -282,7 +295,7 @@ export class ZohoSyncService {
   /**
    * Map Zoho contact fields to Client entity
    */
-  private mapZohoToClient(zoho: ZohoContact, client: Client): void {
+  private async mapZohoToClient(zoho: ZohoContact, client: Client): Promise<void> {
     client.zohoModifiedTime = new Date(zoho.Modified_Time);
 
     // Only update fields if they have values (avoid overwriting with undefined)
@@ -305,7 +318,22 @@ export class ZohoSyncService {
       client.motivoCierre = zoho.Motivo_de_cierre as string || null;
     }
     if (zoho.Email_operativo !== undefined) {
-      client.emailOperativo = zoho.Email_operativo as string;
+      // Only accept emails from managed domains (e.g. personalwork.es)
+      // Ignore personal emails like @gmail.com
+      const emailValue = zoho.Email_operativo as string;
+      if (emailValue) {
+        const domain = emailValue.split('@')[1];
+        const managedDomains = await this.getManagedDomains();
+        if (domain && managedDomains.includes(domain)) {
+          client.emailOperativo = emailValue;
+        } else {
+          this.logger.warn(
+            `Ignoring non-managed domain email "${emailValue}" for client ${client.zohoId}`,
+          );
+        }
+      } else {
+        client.emailOperativo = emailValue;
+      }
     }
     if (zoho.Industria !== undefined) {
       client.industria = zoho.Industria as string;
