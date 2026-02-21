@@ -29,6 +29,8 @@ import { CvCreator } from './entities/cv-creator.entity';
 import { CvCreatorsModule } from './cv-creators/cv-creators.module';
 import { Dominio } from './entities/dominio.entity';
 import { DominiosModule } from './dominios/dominios.module';
+import { GoogleWorkspaceModule } from './google-workspace/google-workspace.module';
+import { CorporateEmailsModule } from './corporate-emails/corporate-emails.module';
 import configuration from './config/configuration';
 import { envValidationSchema } from './config/env.validation';
 
@@ -85,6 +87,8 @@ import { envValidationSchema } from './config/env.validation';
     WorkflowStateModule,
     CvCreatorsModule,
     DominiosModule,
+    GoogleWorkspaceModule,
+    CorporateEmailsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

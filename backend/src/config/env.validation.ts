@@ -20,6 +20,7 @@ export const envValidationSchema = Joi.object({
 
   // Email Service
   GOOGLE_CREDENTIALS_PATH: Joi.string().default('google-creds.json'),
+  GOOGLE_WORKSPACE_ADMIN_EMAIL: Joi.string().required(),
 
   // Worker Configuration
   WORKER_BATCH_SIZE: Joi.number().min(1).max(50).default(5),

@@ -28,17 +28,17 @@ export class Client {
   apellido: string;
 
   @Column({ name: 'email_operativo', length: 255, nullable: true })
-  emailOperativo: string;
+  emailOperativo: string | null;
 
   @Column({ name: 'email_operativo_pw', length: 255, nullable: true })
-  emailOperativoPw: string;
+  emailOperativoPw: string | null;
 
   @Column({
     name: 'fecha_creacion_email_operativo',
     type: 'timestamp',
     nullable: true,
   })
-  fechaCreacionEmailOperativo: Date;
+  fechaCreacionEmailOperativo: Date | null;
 
   @Column({ length: 150, nullable: true })
   industria: string;
@@ -132,6 +132,12 @@ export class Client {
 
   @Column({ name: 'last_email_sent_at', type: 'timestamp', nullable: true })
   lastEmailSentAt: Date;
+
+  @Column({ name: 'email_deletion_pending_since', type: 'timestamp', nullable: true })
+  emailDeletionPendingSince: Date | null;
+
+  @Column({ name: 'email_deletion_reason', type: 'text', nullable: true })
+  emailDeletionReason: string | null;
 
   // Relation to Send Settings (One-to-One)
   @OneToOne(() => ClientSendSettings, (settings) => settings.client)

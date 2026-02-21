@@ -19,6 +19,7 @@ export default () => ({
   email: {
     googleCredentialsPath:
       process.env.GOOGLE_CREDENTIALS_PATH || 'google-creds.json',
+    googleWorkspaceAdminEmail: process.env.GOOGLE_WORKSPACE_ADMIN_EMAIL,
   },
   worker: {
     batchSize: parseInt(process.env.WORKER_BATCH_SIZE || '5', 10),
