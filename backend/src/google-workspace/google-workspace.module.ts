@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { GoogleWorkspaceService } from './google-workspace.service';
+import { GoogleWorkspaceService } from './google-workspace.service.js';
 
 @Module({
     providers: [GoogleWorkspaceService],

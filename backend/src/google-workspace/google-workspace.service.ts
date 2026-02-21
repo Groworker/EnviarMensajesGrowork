@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { google, admin_directory_v1 } from 'googleapis';
-import { createGoogleAuth } from '../common/utils/google-auth.util';
+import { createGoogleAuth } from '../common/utils/google-auth.util.js';
 
 @Injectable()
 export class GoogleWorkspaceService {
