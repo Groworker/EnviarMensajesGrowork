@@ -28,17 +28,17 @@ export class Client {
   apellido: string;
 
   @Column({ name: 'email_operativo', length: 255, nullable: true })
-  emailOperativo: string | null;
+  emailOperativo: string;
 
   @Column({ name: 'email_operativo_pw', length: 255, nullable: true })
-  emailOperativoPw: string | null;
+  emailOperativoPw: string;
 
   @Column({
     name: 'fecha_creacion_email_operativo',
     type: 'timestamp',
     nullable: true,
   })
-  fechaCreacionEmailOperativo: Date | null;
+  fechaCreacionEmailOperativo: Date;
 
   @Column({ length: 150, nullable: true })
   industria: string;

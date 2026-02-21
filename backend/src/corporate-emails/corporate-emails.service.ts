@@ -99,9 +99,9 @@ export class CorporateEmailsService {
             where: { emailOperativo: email },
         });
         if (client) {
-            client.emailOperativo = null;
-            client.emailOperativoPw = null;
-            client.fechaCreacionEmailOperativo = null;
+            client.emailOperativo = null as any;
+            client.emailOperativoPw = null as any;
+            client.fechaCreacionEmailOperativo = null as any;
             client.emailDeletionPendingSince = null;
             client.emailDeletionReason = null;
             await this.clientRepository.save(client);
