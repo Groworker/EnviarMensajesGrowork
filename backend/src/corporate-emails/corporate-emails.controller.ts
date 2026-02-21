@@ -1,5 +1,5 @@
 import { Controller, Get, Delete, Param, Post } from '@nestjs/common';
-import { CorporateEmailsService } from './corporate-emails.service';
+import { CorporateEmailsService } from './corporate-emails.service.js';
 
 @Controller('corporate-emails')
 export class CorporateEmailsController {
